@@ -66,14 +66,94 @@ pub enum WatcherEvent {
         level: &'static str,
         message: String,
     },
-    /// 一张渲染完成的表格（人满出表 / 超时兜底 / 回放），直接展示即可
+    /// 一张渲染完成的表格（人满出表 / 超时兜底 / 回放）。
+    /// `text` 是与 CLI 输出一致的成品，`data` 是结构化数据，消费者二选一。
     Report {
         text: String,
+        data: GuiReport,
     },
     /// 会话结束，`code` 与 CLI 退出码含义一致
     Finished {
         code: i32,
     },
+}
+
+/// 一名玩家的可展示数据。字段随来源可缺省：战绩接口给全量，
+/// 推送帧兜底时只有 steamid 和实时 K/D / ADR。
+#[derive(Debug, Clone, Serialize)]
+pub struct GuiRow {
+    pub side: String,
+    pub steamid: String,
+    pub nickname: Option<String>,
+    pub rating_pro: Option<f64>,
+    pub kd: Option<f64>,
+    pub adr: Option<f64>,
+    pub we: Option<f64>,
+    pub map_win_rate: Option<f64>,
+    pub head_shot_rate: Option<f64>,
+    pub snipe_rate: Option<f64>,
+    pub flash_success_rate: Option<f64>,
+    pub pvp_score: Option<f64>,
+}
+
+/// [`WatcherEvent::Report`] 的结构化载荷：GUI 据此画真正的表格，
+/// 不必去解析渲染好的 ASCII 文本。
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct GuiReport {
+    pub map: Option<String>,
+    pub ct: Vec<GuiRow>,
+    pub t: Vec<GuiRow>,
+    /// 阵营识别不出的玩家数（未计入 ct / t）
+    pub unknown: usize,
+}
+
+/// 战绩接口行 → 展示行
+fn gui_row_from_stat(stat: &crate::model::PlayerStat, side: &str) -> GuiRow {
+    GuiRow {
+        side: side.to_string(),
+        steamid: stat.steamid.clone(),
+        nickname: (!stat.nickname.is_empty()).then(|| stat.nickname.clone()),
+        rating_pro: stat.rating_pro,
+        kd: stat.kd,
+        adr: stat.adr,
+        we: stat.we,
+        map_win_rate: stat.map_win_rate,
+        head_shot_rate: stat.head_shot_rate,
+        snipe_rate: stat.snipe_rate,
+        flash_success_rate: stat.flash_success_rate,
+        pvp_score: stat.pvp_score,
+    }
+}
+
+/// 推送帧兜底：没有战绩数据时用实时名单凑展示行
+fn gui_rows_from_info(info: &MatchInfo) -> (Vec<GuiRow>, Vec<GuiRow>) {
+    let teams = info.teams();
+    let convert = |players: &[crate::model::Player], side: &str| {
+        players
+            .iter()
+            .map(|player| {
+                let kd = match (player.kill, player.death) {
+                    (Some(k), Some(d)) if d > 0.0 => Some(k / d),
+                    _ => None,
+                };
+                GuiRow {
+                    side: side.to_string(),
+                    steamid: player.steamid.clone(),
+                    nickname: None,
+                    rating_pro: None,
+                    kd,
+                    adr: player.adr,
+                    we: None,
+                    map_win_rate: None,
+                    head_shot_rate: None,
+                    snipe_rate: None,
+                    flash_success_rate: None,
+                    pvp_score: None,
+                }
+            })
+            .collect()
+    };
+    (convert(&teams.ct, "CT"), convert(&teams.t, "T"))
 }
 
 /// 监听会话的运行参数。字段与 CLI 一一对应，GUI 按需填。
@@ -409,19 +489,37 @@ pub fn emit_final(
         });
     }
 
-    // 表格是"产品"，通过 Report 事件交给消费者；日志走 Notice，两者不混
-    let text = if report.is_empty() {
+    // 表格是"产品"，通过 Report 事件交给消费者；日志走 Notice，两者不混。
+    // 同一份数据给两次：text 供 CLI 直接打印，data 供 GUI 画真正的表格。
+    let (text, data) = if report.is_empty() {
         on_event(WatcherEvent::Notice {
             level: "warn",
             message: "无战绩数据，回退为按 SteamID 显示的实时表格（昵称依赖战绩接口）".into(),
         });
-        render_match(info, &StatsMap::new(), false)
+        let (ct, t) = gui_rows_from_info(info);
+        (
+            render_match(info, &StatsMap::new(), false),
+            GuiReport {
+                map: info.map(),
+                ct,
+                t,
+                unknown: teams.unknown.len(),
+            },
+        )
     } else {
         // 人数以推送帧为准（战绩接口只回它认识的），所以两个数字都传进去
         let shown = if loaded == 0 { report.len() } else { loaded };
-        render_report(Some(info), report, shown, expected)
+        (
+            render_report(Some(info), report, shown, expected),
+            GuiReport {
+                map: report.map().or_else(|| info.map()),
+                ct: report.ct.iter().map(|s| gui_row_from_stat(s, "CT")).collect(),
+                t: report.t.iter().map(|s| gui_row_from_stat(s, "T")).collect(),
+                unknown: teams.unknown.len(),
+            },
+        )
     };
-    on_event(WatcherEvent::Report { text });
+    on_event(WatcherEvent::Report { text, data });
 
     let snapshot = MatchSnapshot::now(info.clone(), report.raw.clone());
     for (kind, err) in exporters.export_all(&snapshot) {

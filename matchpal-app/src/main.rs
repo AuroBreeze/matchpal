@@ -20,9 +20,10 @@ use match_watcher::config::{self, Credentials};
 use match_watcher::export::Exporters;
 use match_watcher::session::{self, SessionOptions, WatcherEvent};
 
-/// 悬浮窗的两种形态：展开的胶囊条 / 收缩的小圆钮
+/// 悬浮窗的三种形态：胶囊条（等待）/ 小圆钮（收缩）/ 数据面板（出表）
 const FLOATING_PILL: (f64, f64) = (272.0, 74.0);
 const FLOATING_DOT: (f64, f64) = (56.0, 56.0);
+const FLOATING_PANEL: (f64, f64) = (322.0, 402.0);
 
 /// 共享给监听线程的运行状态
 #[derive(Default)]
@@ -53,10 +54,17 @@ struct StartWatchArgs {
     /// 出表后继续监听
     #[serde(default)]
     keep_going: bool,
+    /// 匹配成立 / 出表时自动弹出悬浮窗（游戏里看，不切窗口）
+    #[serde(default = "default_true")]
+    auto_floating: bool,
 }
 
 fn default_full() -> usize {
     10
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// 配置文件定位：先看工作目录，再看 exe 所在目录（双击启动时的工作目录不可控）
@@ -128,6 +136,7 @@ fn start_watch(
     state.lock().map_err(|_| "状态锁已损坏")?.stop = Some(stop.clone());
 
     let shared = state.inner().clone();
+    let auto_floating = args.auto_floating;
     std::thread::spawn(move || {
         let opts = SessionOptions {
             full: args.full,
@@ -140,6 +149,14 @@ fn start_watch(
             stop: Some(stop),
         };
         let _ = session::run_session(&credentials, 2, opts, &mut |event| {
+            // 匹配成立 / 出表的瞬间自动亮出悬浮窗——这是它存在的意义：
+            // 主窗口收起来，游戏里直接看
+            if auto_floating
+                && matches!(event, WatcherEvent::Connected { .. } | WatcherEvent::Report { .. })
+                && let Some(win) = app.get_webview_window("floating")
+            {
+                let _ = win.show();
+            }
             if let Ok(mut st) = shared.lock() {
                 st.last_event = Some(event.clone());
             }
@@ -180,15 +197,19 @@ fn set_floating_visible(app: AppHandle, visible: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// 悬浮窗在胶囊条与小圆钮之间切换：改窗口尺寸，并通知页面换视图。
+/// 悬浮窗在胶囊条 / 小圆钮 / 数据面板之间切换：改窗口尺寸，并通知页面换视图。
 #[tauri::command]
-fn float_set_collapsed(app: AppHandle, collapsed: bool) -> Result<(), String> {
+fn float_set_view(app: AppHandle, view: String) -> Result<(), String> {
     let win = app
         .get_webview_window("floating")
         .ok_or_else(|| "悬浮窗不存在".to_string())?;
-    let (w, h) = if collapsed { FLOATING_DOT } else { FLOATING_PILL };
+    let (w, h) = match view.as_str() {
+        "dot" => FLOATING_DOT,
+        "panel" => FLOATING_PANEL,
+        _ => FLOATING_PILL,
+    };
     win.set_size(LogicalSize::new(w, h)).map_err(|err| err.to_string())?;
-    app.emit_to("floating", "floating-view", collapsed)
+    app.emit_to("floating", "floating-view", view)
         .map_err(|err| err.to_string())?;
     Ok(())
 }
@@ -213,7 +234,7 @@ fn main() {
             start_watch,
             stop_watch,
             set_floating_visible,
-            float_set_collapsed,
+            float_set_view,
             open_main
         ])
         .run(tauri::generate_context!())

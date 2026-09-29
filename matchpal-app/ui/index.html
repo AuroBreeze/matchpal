@@ -161,6 +161,18 @@
     .pulse.on { display: block; }
     @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--faint);
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+    .toggle:hover { color: var(--muted); }
+    .toggle input { accent-color: var(--accent); cursor: pointer; }
+
     /* ---------- 主区 ---------- */
     main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     #table-wrap {
@@ -189,7 +201,7 @@
     #table-card .card-head {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       padding: 10px 16px;
       border-bottom: 1px solid var(--line);
       font-family: var(--mono);
@@ -204,18 +216,66 @@
       background: var(--ok);
       box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.55);
     }
-    #table {
+    .meta-chip {
       font-family: var(--mono);
-      font-size: 12.5px;
-      line-height: 1.6;
-      white-space: pre;
-      padding: 16px 20px 18px;
-      overflow-x: auto;
-      user-select: text;
+      font-size: 10.5px;
+      color: var(--muted);
+      background: var(--control);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 2px 9px;
+      letter-spacing: 0.02em;
     }
-    #table .rule { color: rgba(var(--line-rgb), 0.22); }
-    #table .meta { color: var(--muted); }
-    #table .side { color: var(--accent); font-weight: 600; }
+    table#stats {
+      border-collapse: collapse;
+      font-size: 12.5px;
+      min-width: 760px;
+    }
+    #stats th {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--faint);
+      text-align: right;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--line-strong);
+      white-space: nowrap;
+    }
+    #stats th.player, #stats td.player { text-align: left; }
+    #stats td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    #stats tr:last-child td { border-bottom: none; }
+    #stats tbody tr { transition: background 0.15s ease; }
+    #stats tbody tr:hover { background: rgba(var(--overlay-rgb), 0.045); }
+    #stats td.side {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--faint);
+    }
+    #stats td.side.ct { color: var(--accent); }
+    #stats td.side.t { color: var(--blue); }
+    #stats td.player { font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif; font-size: 12.5px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+    #stats td.player .sid { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+    #stats td .dim { color: var(--faint); }
+    #stats .rating { font-weight: 600; }
+    #stats .rating.great { color: var(--accent); }
+    #stats .rating.low { color: var(--warn); }
+    #stats .rating.poor { color: var(--bad); }
+
+    #table-card .card-head .spacer { flex: 1; }
+    table#stats { user-select: text; }
 
     /* ---------- 空状态 ---------- */
     #empty {
@@ -321,6 +381,10 @@
     <span id="status">待机</span>
     <span class="pulse" id="pulse"></span>
     <span class="spacer"></span>
+    <label class="toggle" title="匹配成立和出表时自动弹出悬浮窗，游戏里直接看">
+      <input type="checkbox" id="auto-float" checked />
+      对局自动弹浮窗
+    </label>
     <span class="roster" id="roster"></span>
   </div>
 
@@ -328,8 +392,30 @@
     <div id="error-banner"></div>
     <div id="table-wrap">
       <div id="table-card">
-        <div class="card-head">MATCH SNAPSHOT</div>
-        <pre id="table"></pre>
+        <div class="card-head">
+          MATCH SNAPSHOT
+          <span class="spacer"></span>
+          <span class="meta-chip" id="map-chip" style="display:none"></span>
+          <span class="meta-chip" id="count-chip" style="display:none"></span>
+        </div>
+        <div style="overflow-x: auto; padding: 6px 10px 10px;">
+          <table id="stats">
+            <thead>
+              <tr>
+                <th>阵营</th>
+                <th class="player">玩家</th>
+                <th>ratingPro</th>
+                <th>K/D</th>
+                <th>ADR</th>
+                <th>WE</th>
+                <th>爆头率</th>
+                <th>地图胜率</th>
+                <th>PP分</th>
+              </tr>
+            </thead>
+            <tbody id="stats-body"></tbody>
+          </table>
+        </div>
       </div>
       <div id="empty">
         <div class="glyph">[ && ]</div>
@@ -353,8 +439,66 @@
     const { listen } = window.__TAURI__.event;
 
     const el = (id) => document.getElementById(id);
-    const table = el("table");
     let logCount = 0;
+
+    function fmt(n, digits = 2) {
+      return n == null ? '<span class="dim">—</span>' : n.toFixed(digits);
+    }
+    function fmtPct(n) {
+      return n == null ? '<span class="dim">—</span>' : (n * 100).toFixed(1) + "%";
+    }
+    function ratingClass(r) {
+      if (r == null) return "";
+      if (r >= 1.15) return "great";
+      if (r >= 0.95) return "";
+      if (r >= 0.85) return "low";
+      return "poor";
+    }
+
+    /** 用结构化数据画真正的表格：阵营分色、rating 分档、数字等宽右对齐 */
+    function renderReport(data) {
+      const body = el("stats-body");
+      body.innerHTML = "";
+      const chipMap = el("map-chip");
+      chipMap.style.display = data.map ? "" : "none";
+      chipMap.textContent = data.map || "";
+      const total = data.ct.length + data.t.length;
+      const chipCount = el("count-chip");
+      chipCount.style.display = "";
+      chipCount.textContent = `CT ${data.ct.length} / T ${data.t.length}${data.unknown ? ` · 未识别 ${data.unknown}` : ""}`;
+
+      for (const [side, cls, rows] of [["CT", "ct", data.ct], ["T", "t", data.t]]) {
+        for (const row of rows) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="side ${cls}">${side}</td>
+            <td class="player" title="${row.steamid}">${
+              row.nickname ? escapeHtml(row.nickname) : `<span class="sid">${row.steamid}</span>`
+            }</td>
+            <td class="rating ${ratingClass(row.rating_pro)}">${fmt(row.rating_pro)}</td>
+            <td>${fmt(row.kd)}</td>
+            <td>${fmt(row.adr, 1)}</td>
+            <td>${fmt(row.we, 1)}</td>
+            <td>${fmtPct(row.head_shot_rate)}</td>
+            <td>${fmtPct(row.map_win_rate)}</td>
+            <td>${row.pvp_score ?? '<span class="dim">—</span>'}</td>`;
+          body.appendChild(tr);
+        }
+      }
+      el("table-card").classList.add("show");
+      el("empty").style.display = "none";
+      // 重新触发入场动画
+      const card = el("table-card");
+      card.style.animation = "none";
+      void card.offsetWidth;
+      card.style.animation = "";
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+    }
 
     function setRunning(on) {
       el("start").disabled = on;
@@ -403,28 +547,12 @@
       el("log-count").textContent = ++logCount;
     }
 
-    /** 给表格上色：分隔线弱化，汇总行变暗，阵营标签提亮 */
+    /** 兜底：拿不到结构化数据时退回 ASCII 文本 */
     function renderTable(text) {
-      table.innerHTML = "";
-      for (const line of text.split("\n")) {
-        const span = document.createElement("span");
-        if (/^[=\-]+\s*$/.test(line)) {
-          span.className = "rule";
-        } else if (/^(名单人数|CT 队伍汇总|T 队伍汇总)/.test(line.trim())) {
-          span.className = "meta";
-        } else if (/^(CT|T)\s/.test(line)) {
-          span.className = "side";
-        }
-        span.textContent = line + "\n";
-        table.appendChild(span);
-      }
       el("table-card").classList.add("show");
       el("empty").style.display = "none";
-      // 重新触发入场动画
-      const card = el("table-card");
-      card.style.animation = "none";
-      void card.offsetWidth;
-      card.style.animation = "";
+      const body = el("stats-body");
+      body.innerHTML = `<tr><td class="player" colspan="9" style="white-space:pre;font-family:var(--mono);font-size:12px">${escapeHtml(text)}</td></tr>`;
     }
 
     async function refreshTokenStatus() {
@@ -468,7 +596,8 @@
           appendLog(ev.data.level, ev.data.message);
           break;
         case "Report":
-          renderTable(ev.data.text);
+          if (ev.data && ev.data.ct !== undefined) renderReport(ev.data);
+          else renderTable("（本帧没有结构化数据）");
           setStatus("已出表");
           showRoster(0, 0);
           el("pulse").classList.remove("on");
@@ -485,7 +614,9 @@
       logCount = 0;
       el("log-count").textContent = "0";
       try {
-        await invoke("start_watch", { args: { full: 10, keep_going: false } });
+        await invoke("start_watch", {
+          args: { full: 10, keep_going: false, auto_floating: el("auto-float").checked },
+        });
         setRunning(true);
         setStatus("连接中…", true);
       } catch (err) {

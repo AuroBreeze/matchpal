@@ -14,7 +14,7 @@
       --line: rgba(var(--line-rgb), 0.138);
       --line-strong: rgba(var(--line-rgb), 0.238);
       --control: rgba(var(--overlay-rgb), 0.049);
-      --glass-alpha: 0.72;
+      --glass-alpha: 0.78;
       --glass: rgba(var(--glass-rgb), var(--glass-alpha));
       --glass-filter: blur(28px) saturate(115%);
       --text: #eef5fb;
@@ -22,7 +22,7 @@
       --faint: #6d7681;
       --accent: #b7ead4;
       --accent-rgb: 183, 234, 212;
-      --ok: #b7ead4;
+      --blue: #73bdf5;
       --bad: #f47788;
       --warn: #f1d973;
       --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, monospace;
@@ -36,10 +36,12 @@
       color: var(--text);
       font-size: 12px;
     }
+    body { display: none; }
+    body.view-pill, body.view-dot, body.view-panel { display: block; }
 
     /* ---------- 胶囊条视图 ---------- */
     #pill {
-      display: flex;
+      display: none;
       align-items: center;
       gap: 10px;
       height: 100%;
@@ -51,9 +53,11 @@
       border: 1px solid var(--line);
       box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(var(--overlay-rgb), 0.06);
       cursor: pointer;
-      transition: border-color 0.2s ease, background 0.2s ease;
+      transition: border-color 0.2s ease;
     }
     #pill:hover { border-color: var(--line-strong); }
+    body.view-pill #pill { display: flex; }
+
     .dot {
       flex: 0 0 auto;
       width: 9px; height: 9px;
@@ -61,7 +65,7 @@
       background: var(--faint);
       transition: background 0.25s ease, box-shadow 0.25s ease;
     }
-    .dot.live { background: var(--ok); box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6); animation: breathe 2s ease-in-out infinite; }
+    .dot.live { background: var(--accent); box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6); animation: breathe 2s ease-in-out infinite; }
     .dot.bad { background: var(--bad); box-shadow: 0 0 8px rgba(244, 119, 136, 0.5); }
     .dot.warn { background: var(--warn); }
     @keyframes breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
@@ -70,7 +74,6 @@
     #state {
       font-family: var(--mono);
       font-size: 12px;
-      color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -92,7 +95,7 @@
       align-items: center;
       justify-content: center;
       border-radius: 7px;
-      border: 1px solid transparent;
+      border: none;
       background: transparent;
       color: var(--muted);
       font-family: var(--mono);
@@ -121,17 +124,95 @@
       transition: border-color 0.2s ease;
     }
     #dot-view:hover { border-color: var(--line-strong); }
+    body.view-dot #dot-view { display: flex; }
     #dot-view .dot { width: 10px; height: 10px; }
-    #dot-view .mini {
+    #dot-view .mini { font-family: var(--mono); font-size: 9.5px; color: var(--muted); }
+
+    /* ---------- 数据面板视图：出表后直接在这里看 ---------- */
+    #panel {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      border-radius: 14px;
+      background: var(--glass);
+      -webkit-backdrop-filter: var(--glass-filter);
+      backdrop-filter: var(--glass-filter);
+      border: 1px solid var(--line);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(var(--overlay-rgb), 0.06);
+      overflow: hidden;
+    }
+    body.view-panel #panel { display: flex; }
+    #panel-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--line);
+      cursor: grab;
+    }
+    #panel-head .map { font-family: var(--mono); font-size: 11px; color: var(--text); }
+    #panel-head .tag {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      background: rgba(var(--accent-rgb), 0.12);
+      border-radius: 5px;
+      padding: 2px 7px;
+    }
+    #panel-head .spacer { flex: 1; }
+    #panel-body { flex: 1; overflow-y: auto; padding: 8px 10px 10px; }
+    .team-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
       font-family: var(--mono);
       font-size: 9.5px;
-      color: var(--muted);
+      letter-spacing: 0.12em;
+      color: var(--faint);
+      padding: 7px 2px 4px;
     }
-    body.collapsed #pill { display: none; }
-    body.collapsed #dot-view { display: flex; }
+    .team-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+    .team-title.ct { color: var(--accent); }
+    .team-title.t { color: var(--blue); }
+    .prow {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 4px 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .prow:hover { background: rgba(var(--overlay-rgb), 0.06); }
+    .prow .nick {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .prow .rating { font-family: var(--mono); font-size: 12px; font-weight: 600; width: 42px; text-align: right; }
+    .prow .kd, .prow .score { font-family: var(--mono); font-size: 10.5px; color: var(--muted); width: 44px; text-align: right; }
+    .rating.great { color: var(--accent); }
+    .rating.poor { color: var(--bad); }
+    .rating.low { color: var(--warn); }
+    #panel-foot {
+      padding: 6px 12px;
+      border-top: 1px solid var(--line);
+      font-size: 10px;
+      color: var(--faint);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #panel-foot .btns { gap: 2px; }
+    #panel-foot .icon-btn { width: 20px; height: 20px; font-size: 11px; }
   </style>
 </head>
-<body>
+<body class="view-pill">
+  <!-- 胶囊：等待阶段 -->
   <div id="pill" data-tauri-drag-region>
     <span class="dot" id="pill-dot" data-tauri-drag-region></span>
     <div class="info" data-tauri-drag-region>
@@ -144,9 +225,27 @@
     </div>
   </div>
 
+  <!-- 圆钮：缩到角落 -->
   <div id="dot-view" data-tauri-drag-region title="点击展开">
     <span class="dot" id="dot-dot"></span>
     <span class="mini" id="mini-count"></span>
+  </div>
+
+  <!-- 面板：出表后直接看双方成色 -->
+  <div id="panel">
+    <div id="panel-head" data-tauri-drag-region>
+      <span class="tag">已出表</span>
+      <span class="map" id="panel-map">-</span>
+      <span class="spacer"></span>
+    </div>
+    <div id="panel-body"></div>
+    <div id="panel-foot">
+      <span>点击玩家行回主窗口</span>
+      <div class="btns">
+        <button class="icon-btn" id="panel-shrink" title="收回胶囊">–</button>
+        <button class="icon-btn" id="hide2" title="关闭悬浮窗">×</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -156,16 +255,15 @@
     const el = (id) => document.getElementById(id);
     let full = 0;
     let loaded = 0;
+    let lastReport = null;
 
     function setDot(mode) {
-      for (const id of ["pill-dot", "dot-dot"]) {
-        el(id).className = `dot ${mode}`;
-      }
+      for (const id of ["pill-dot", "dot-dot"]) el(id).className = `dot ${mode}`;
     }
 
     function setState(text, mode) {
       el("state").textContent = text;
-      el("mini-count").textContent = text === "待机" ? "" : text.slice(0, 2);
+      el("mini-count").textContent = mode === "live" && full ? `${loaded}/${full}` : text === "已出表" ? "✓" : "";
       setDot(mode || "");
     }
 
@@ -182,7 +280,64 @@
       count.className = "count";
       count.textContent = `${loaded}/${full}`;
       box.appendChild(count);
-      el("mini-count").textContent = `${loaded}/${full}`;
+    }
+
+    function ratingClass(r) {
+      if (r == null) return "";
+      if (r >= 1.15) return "great";
+      if (r >= 0.95) return "";
+      if (r >= 0.85) return "low";
+      return "poor";
+    }
+
+    /** 面板：双方按 ratingPro 降序，一眼看出对面谁是大哥 */
+    function renderPanel(data) {
+      el("panel-map").textContent = data.map || "-";
+      const body = el("panel-body");
+      body.innerHTML = "";
+      for (const [label, cls, rows] of [
+        ["CT", "ct", data.ct],
+        ["T", "t", data.t],
+      ]) {
+        const title = document.createElement("div");
+        title.className = `team-title ${cls}`;
+        title.textContent = label;
+        body.appendChild(title);
+
+        const sorted = [...rows].sort(
+          (a, b) => (b.rating_pro ?? -1) - (a.rating_pro ?? -1)
+        );
+        for (const row of sorted) {
+          const line = document.createElement("div");
+          line.className = "prow";
+          line.title = row.steamid;
+          const nick = document.createElement("span");
+          nick.className = "nick";
+          nick.textContent = row.nickname || row.steamid;
+          const rating = document.createElement("span");
+          rating.className = `rating ${ratingClass(row.rating_pro)}`;
+          rating.textContent = row.rating_pro != null ? row.rating_pro.toFixed(2) : "—";
+          const kd = document.createElement("span");
+          kd.className = "kd";
+          kd.textContent = row.kd != null ? `K/D ${row.kd.toFixed(2)}` : "";
+          const score = document.createElement("span");
+          score.className = "score";
+          score.textContent = row.pvp_score != null ? row.pvp_score : "";
+          line.append(nick, rating, kd, score);
+          line.addEventListener("click", () => invoke("open_main").catch(() => {}));
+          body.appendChild(line);
+        }
+        if (!rows.length) {
+          const none = document.createElement("div");
+          none.className = "prow";
+          none.innerHTML = '<span class="nick" style="color:var(--faint)">暂无数据</span>';
+          body.appendChild(none);
+        }
+      }
+    }
+
+    function showView(view) {
+      document.body.className = `view-${view}`;
     }
 
     // 同一套事件流：主窗口与悬浮窗消费同一份数据
@@ -195,6 +350,8 @@
         case "Connected":
           full = ev.data.full;
           loaded = 0;
+          lastReport = null;
+          if (document.body.classList.contains("view-panel")) showView("pill");
           setState("监听中", "live");
           renderRoster();
           break;
@@ -207,26 +364,31 @@
         case "Resubscribed":
           setState("重订中", "warn");
           break;
-        case "Report":
-          loaded = full;
-          setState("已出表", "live");
-          renderRoster();
-          break;
         case "Notice":
           if (ev.data.level === "error") setState("出错了", "bad");
           break;
+        case "Report":
+          lastReport = ev.data;
+          renderPanel(ev.data.data);
+          showView("panel");
+          setState("已出表", "live");
+          break;
         case "Finished":
-          setState("待机", "");
-          loaded = 0;
-          renderRoster();
+          // 出过表就停在面板上让人看；没出过才收回胶囊
+          if (!lastReport) {
+            showView("pill");
+            setState("待机", "");
+            loaded = 0;
+            renderRoster();
+          } else {
+            el("panel-map").textContent = `${lastReport.data.map || "-"} · 会话结束`;
+          }
           break;
       }
     });
 
-    // 收起 / 展开视图切换（窗口尺寸由 Rust 侧同步调整）
-    listen("floating-view", (e) => {
-      document.body.classList.toggle("collapsed", e.payload === true);
-    });
+    // 视图切换（窗口尺寸由 Rust 侧同步调整）
+    listen("floating-view", (e) => showView(e.payload));
 
     // 悬浮窗打开时若没有新事件，先亮出 token 健康度
     invoke("token_status")
@@ -237,16 +399,21 @@
 
     el("collapse").addEventListener("click", (e) => {
       e.stopPropagation();
-      invoke("float_set_collapsed", { collapsed: true }).catch(() => {});
+      invoke("float_set_view", { view: "dot" }).catch(() => {});
     });
-    el("hide").addEventListener("click", (e) => {
-      e.stopPropagation();
-      invoke("set_floating_visible", { visible: false }).catch(() => {});
-    });
-    // 点胶囊回主窗口；小圆钮点一下展开回胶囊
+    for (const id of ["hide", "hide2"]) {
+      el(id).addEventListener("click", (e) => {
+        e.stopPropagation();
+        invoke("set_floating_visible", { visible: false }).catch(() => {});
+      });
+    }
+    el("panel-shrink").addEventListener("click", () =>
+      invoke("float_set_view", { view: "pill" }).catch(() => {})
+    );
+    // 点胶囊回主窗口；圆钮点一下展开回胶囊
     el("pill").addEventListener("dblclick", () => invoke("open_main").catch(() => {}));
     el("dot-view").addEventListener("click", () =>
-      invoke("float_set_collapsed", { collapsed: false }).catch(() => {})
+      invoke("float_set_view", { view: "pill" }).catch(() => {})
     );
 
     setState("待机");

@@ -138,7 +138,7 @@ fn handle_event(event: WatcherEvent) {
             "debug" => debug!("{message}"),
             _ => info!("{message}"),
         },
-        WatcherEvent::Report { text } => print!("{text}"),
+        WatcherEvent::Report { text, .. } => print!("{text}"),
         WatcherEvent::Finished { .. } => {}
     }
 }
