@@ -203,11 +203,12 @@ mod tests {
 
     #[test]
     fn masked_token_keeps_only_the_head() {
+        // 值与真实 token 无关，只保留「40 位十六进制」的形态
         let credentials = Credentials {
             token: "0123456789abcdef0123456789abcdef01234567".into(),
             steamid: String::new(),
         };
-        assert_eq!(credentials.masked_token(), "63b84f7125…");
+        assert_eq!(credentials.masked_token(), "0123456789…");
         // 短 token 原样返回，不要弄出个看不懂的省略号
         let short = Credentials { token: "abc".into(), steamid: String::new() };
         assert_eq!(short.masked_token(), "abc");
