@@ -12,8 +12,6 @@ use logkit::Level;
 pub const EXIT_OK: i32 = 0;
 /// token 无效（调 getWebsocketInfo 失败）
 pub const EXIT_TOKEN_INVALID: i32 = 1;
-/// 跑完了但没收到对局推送。Python 版同样返回 1，这里分开命名只为可读
-pub const EXIT_NO_PUSH: i32 = 1;
 /// 配置/参数不对
 pub const EXIT_ARGS: i32 = 2;
 

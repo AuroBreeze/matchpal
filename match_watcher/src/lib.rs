@@ -27,4 +27,5 @@ pub mod config;
 pub mod export;
 pub mod model;
 pub mod render;
+pub mod session;
 pub mod ws;
