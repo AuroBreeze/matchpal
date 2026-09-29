@@ -1,0 +1,15 @@
+[package]
+name = "matchpal"
+version = "0.1.0"
+edition = "2024"
+
+
+[workspace]
+resolver = "2"
+members = ["fetch_token"]
+
+# 注意：profile 必须写在 workspace 根，写在成员 crate 里会被忽略
+[profile.release]
+opt-level = 2
+strip = true
+

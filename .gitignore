@@ -1,0 +1,8 @@
+/target
+
+# 运行时产物
+#   config.local.json 里是**明文** access_token / uid / steamid / source_url
+#   capture/ 放生成的 CA 证书，--log-all 的 flows.log 里 URL 上直接挂着 token
+config.local.json
+capture/
+*.pem

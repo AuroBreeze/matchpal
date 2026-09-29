@@ -1,0 +1,21 @@
+[package]
+name = "fetch_token"
+version = "0.1.0"
+edition = "2024"
+description = "获取查看对局数据所需要的token"
+
+
+[dependencies]
+# 拦截式 HTTP/S 代理。
+# native-tls-client → 上游连接走 schannel（读 **Windows 证书库**）。
+#   本机有 HTTPS 中间人 CA，只有走系统证书库才连得上；用 rustls 默认根证书会报 UnknownIssuer。
+# http2 → 客户端是 Chromium，可能协商 h2。
+hudsucker = { version = "0.25", features = ["native-tls-client", "http2"] }
+
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time", "sync"] }
+serde_json = "1"
+# BodyExt::collect —— 读请求体/响应体扫 token（hudsucker 的 Body 实现了 HttpBody）。
+# 版本对齐 hudsucker 自身的依赖：Cargo.lock 里已有 0.1.5，无需联网。
+http-body-util = "0.1"
+winreg = "0.56.0"
+chrono = "0.4"
