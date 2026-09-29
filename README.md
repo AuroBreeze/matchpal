@@ -27,6 +27,7 @@
 | `fetch_token` | 本地代理工具，从完美世界客户端流量中捕获 access_token，生成配置文件 |
 | `match_watcher` | 主程序：订阅对局推送，等名单满员，查询战绩并渲染表格 |
 | `logkit` | 两个程序共用的分级日志库（时间戳、级别过滤、颜色、文件输出） |
+| `matchpal-app` | 桌面端（开发中）：Tauri 壳，复用 `match_watcher` 的 lib 与事件流；`fetch_token` 不进其进程，保持独立 |
 
 构建要求：Rust 1.85 及以上（edition 2024），Windows 10/11。
 

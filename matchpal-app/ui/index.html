@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matchpal</title>
+  <style>
+    :root {
+      --bg: #101418;
+      --panel: #171d24;
+      --border: #26303a;
+      --text: #d7dee6;
+      --dim: #7d8b99;
+      --accent: #4da3ff;
+      --ok: #4ade80;
+      --bad: #f87171;
+      --warn: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header h1 { font-size: 16px; font-weight: 600; margin-right: 8px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--dim);
+      background: #1d2530;
+      border: 1px solid var(--border);
+    }
+    .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+    .chip.ok .dot { background: var(--ok); }
+    .chip.bad .dot { background: var(--bad); }
+    .chip .detail { color: var(--dim); }
+    .spacer { flex: 1; }
+    button {
+      padding: 7px 18px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #22303f;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button:hover:not(:disabled) { background: #2b3d50; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.primary { background: #1c4e8a; border-color: #2a6ab8; }
+    button.primary:hover:not(:disabled) { background: #2560a5; }
+    #status-line {
+      padding: 8px 16px;
+      font-size: 13px;
+      color: var(--dim);
+      border-bottom: 1px solid var(--border);
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #status-line .progress { color: var(--accent); font-weight: 600; }
+    main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #table-wrap { flex: 1; overflow: auto; padding: 16px; }
+    #table {
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre;
+      color: var(--text);
+    }
+    #table:empty::after {
+      content: "还没有对局数据 —— 匹配成立后点击「开始监听」，人满即出表。";
+      color: var(--dim);
+      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+    }
+    #log-wrap {
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+      max-height: 160px;
+      overflow: auto;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-family: Consolas, monospace;
+      color: var(--dim);
+    }
+    #log-wrap div { padding: 2px 0; white-space: pre-wrap; }
+    #log-wrap .warn { color: var(--warn); }
+    #log-wrap .error { color: var(--bad); }
+    #error-banner {
+      display: none;
+      margin: 10px 16px 0;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #7f2d2d;
+      background: #3a1d1d;
+      color: #f5b5b5;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>matchpal</h1>
+    <span id="token-chip" class="chip"><span class="dot"></span><span id="token-text">读取配置中…</span></span>
+    <span id="config-path" class="chip detail"></span>
+    <span class="spacer"></span>
+    <button id="start" class="primary">开始监听</button>
+    <button id="stop" disabled>停止</button>
+  </header>
+
+  <div id="status-line"><span id="status">待机</span></div>
+  <div id="error-banner"></div>
+
+  <main>
+    <div id="table-wrap"><pre id="table"></pre></div>
+    <div id="log-wrap"></div>
+  </main>
+
+  <script>
+    const { invoke } = window.__TAURI__.core;
+    const { listen } = window.__TAURI__.event;
+
+    const el = (id) => document.getElementById(id);
+    let running = false;
+
+    function setRunning(on) {
+      running = on;
+      el("start").disabled = on;
+      el("stop").disabled = !on;
+      if (!on) setStatus("待机");
+    }
+
+    function setStatus(text, progress) {
+      el("status").textContent = text;
+      const old = document.querySelector("#status-line .progress");
+      if (old) old.remove();
+      if (progress !== undefined) {
+        const p = document.createElement("span");
+        p.className = "progress";
+        p.textContent = progress;
+        el("status-line").appendChild(p);
+      }
+    }
+
+    function showError(message) {
+      const banner = el("error-banner");
+      banner.style.display = "block";
+      banner.textContent = message;
+      setRunning(false);
+    }
+
+    function appendLog(level, message) {
+      const line = document.createElement("div");
+      if (level === "warn" || level === "error") line.className = level;
+      line.textContent = `[${level}] ${message}`;
+      const wrap = el("log-wrap");
+      wrap.appendChild(line);
+      wrap.scrollTop = wrap.scrollHeight;
+    }
+
+    async function refreshTokenStatus() {
+      const s = await invoke("token_status");
+      const chip = el("token-chip");
+      el("config-path").textContent = s.config_path;
+      if (!s.config_found) {
+        chip.className = "chip bad";
+        el("token-text").textContent = "未找到 config.local.json";
+        return;
+      }
+      if (s.has_token) {
+        chip.className = "chip ok";
+        el("token-text").textContent = `token ${s.masked_token}`;
+      } else {
+        chip.className = "chip bad";
+        el("token-text").textContent = "缺少 token（先运行 fetch_token）";
+      }
+    }
+
+    // ---- watcher 事件流：与 CLI 消费的是同一份数据
+    listen("watcher", (e) => {
+      const ev = e.payload;
+      switch (ev.type) {
+        case "Account":
+          setStatus(`账号 ${ev.data.steamid || "（steamid 缺失）"}`);
+          appendLog("info", `账号 ${ev.data.steamid} · token ${ev.data.masked_token}`);
+          break;
+        case "Connected":
+          setStatus("已连接 WebSocket", `等待名单 ${ev.data.full} 人`);
+          break;
+        case "Progress":
+          setStatus("等待中", `名单 ${ev.data.loaded}/${ev.data.full}`);
+          break;
+        case "Resubscribed":
+          setStatus(
+            `已等待 ${Math.round(ev.data.waited_secs)} 秒无推送`,
+            `每 ${Math.round(ev.data.interval_secs)} 秒重新订阅`
+          );
+          break;
+        case "Notice":
+          appendLog(ev.data.level, ev.data.message);
+          break;
+        case "Report":
+          el("table").textContent = ev.data.text;
+          setStatus("已出表");
+          break;
+        case "Finished":
+          setRunning(false);
+          break;
+      }
+    });
+
+    el("start").addEventListener("click", async () => {
+      el("error-banner").style.display = "none";
+      el("log-wrap").innerHTML = "";
+      try {
+        await invoke("start_watch", { args: { full: 10, keep_going: false } });
+        setRunning(true);
+        setStatus("连接中…");
+      } catch (err) {
+        showError(String(err));
+      }
+    });
+
+    el("stop").addEventListener("click", async () => {
+      try {
+        await invoke("stop_watch");
+        setStatus("正在停止…");
+      } catch (err) {
+        appendLog("warn", String(err));
+      }
+    });
+
+    setRunning(false);
+    refreshTokenStatus().catch((err) => showError(String(err)));
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+[package]
+name = "matchpal-app"
+version = "0.1.0"
+edition = "2024"
+description = "matchpal 桌面端：托盘常驻、对局自动弹表的 Tauri 壳"
+
+# 见仓库根 Cargo.toml 的注释：profile 必须写在 workspace 根
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# 只依赖 match_watcher 的 lib（解析 / 渲染 / 事件会话）。
+# fetch_token 刻意不进来：它需要 UAC 提权，桌面端只会把它当外部进程拉起。
+match_watcher = { path = "../match_watcher" }
