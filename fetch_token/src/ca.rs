@@ -1,7 +1,7 @@
-﻿use hudsucker::certificate_authority::RcgenAuthority;
+use hudsucker::certificate_authority::RcgenAuthority;
 use hudsucker::rcgen::{BasicConstraints, CertificateParams, DnType, IsCa, Issuer, KeyPair};
 use hudsucker::rustls::crypto::aws_lc_rs;
-use std::path::{Path,PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use logkit::{error, info};
@@ -88,7 +88,7 @@ impl Drop for Guard {
 }
 
 /// 生成一把自己的 CA 
-pub fn creat_user_ca(cert_path: &PathBuf, ca_name: &String) -> RcgenAuthority {
+pub fn creat_user_ca(cert_path: &Path, ca_name: &str) -> RcgenAuthority {
     let ca = {
         let key_pair = match KeyPair::generate() {
             Ok(pair) => pair,
@@ -107,7 +107,7 @@ pub fn creat_user_ca(cert_path: &PathBuf, ca_name: &String) -> RcgenAuthority {
         params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
         params
             .distinguished_name
-            .push(DnType::CommonName, ca_name.clone());
+            .push(DnType::CommonName, ca_name.to_string());
 
         let ca_cert = match params.self_signed(&key_pair) {
             Ok(cert) => cert,
@@ -116,7 +116,7 @@ pub fn creat_user_ca(cert_path: &PathBuf, ca_name: &String) -> RcgenAuthority {
                 exit_with(2);
             }
         };
-        if let Err(err) = std::fs::write(&cert_path, ca_cert.pem()) {
+        if let Err(err) = std::fs::write(cert_path, ca_cert.pem()) {
             error!("写证书失败：{err}");
             exit_with(2);
         }

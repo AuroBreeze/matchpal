@@ -14,8 +14,8 @@ pub struct Args {
     pub timeout: u64,
     pub keep_going: bool,
     pub keep_ca: bool,
-    /// 已由 `--verbose` / `--log-level` 折算好的日志级别
-    pub log_level: Level,
+    /// 命令行显式给的日志级别；`None` = 没给，交给 `FETCH_TOKEN_LOG` / 默认 info
+    pub log_level: Option<Level>,
     pub log_all: Option<PathBuf>,
     pub no_elevate: bool,
 }
@@ -42,17 +42,15 @@ fetch access_token
   --help                  显示本帮助
 
 环境变量 FETCH_TOKEN_LOG 也能设级别；双击运行时没法加参数，用它更顺手。
+
+退出码：
+  0 抓到并写入配置      1 超时未命中
+  2 环境/参数错误        3 提权被拒绝
+  4 抓到了但写配置失败
 ";
 
-/// 默认日志级别：环境变量 `FETCH_TOKEN_LOG` 优先，认不出就用 info。
-/// 双击运行时没法加参数，这是唯一能拿到 debug 日志的路子。
-fn default_level() -> Level {
-    std::env::var("FETCH_TOKEN_LOG")
-        .ok()
-        .and_then(|text| Level::parse(&text))
-        .unwrap_or(Level::Info)
-}
-
+/// 解析命令行。日志级别只在这里折算成 `Option<Level>`，
+/// 真正生效交给 main —— `FETCH_TOKEN_LOG` 的解析复用 logkit 自己的实现。
 pub fn parse_args() -> Args {
     let argv: Vec<String> = std::env::args().skip(1).collect();
     let mut args = Args {
@@ -71,7 +69,7 @@ pub fn parse_args() -> Args {
         timeout: 300,
         keep_going: false,
         keep_ca: false,
-        log_level: default_level(),
+        log_level: None,
         log_all: None,
         no_elevate: false,
     };
@@ -127,13 +125,19 @@ pub fn parse_args() -> Args {
             }
             "--verbose" => {
                 // 老旗标保留：等价于 --log-level debug
-                args.log_level = Level::Debug;
+                args.log_level = Some(Level::Debug);
                 index += 1;
             }
             "--log-level" => {
                 let text = value(index);
+                // 下一个参数是别的旗标（或已经是最后一个参数）都算没给值：
+                // 否则会报「无法识别的日志级别：--no-pause」这种莫名其妙的错
+                if text.is_empty() || text.starts_with('-') {
+                    logkit::error!("--log-level 缺少级别（可选 trace/debug/info/warn/error/off）");
+                    pause::exit_with(2);
+                }
                 match Level::parse(&text) {
-                    Some(level) => args.log_level = level,
+                    Some(level) => args.log_level = Some(level),
                     None => {
                         // 这里用 logkit 的 error 宏：级别还没生效，但 Error 永远打得出来
                         logkit::error!("无法识别的日志级别：{text}（可选 trace/debug/info/warn/error/off）");

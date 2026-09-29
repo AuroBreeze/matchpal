@@ -53,15 +53,22 @@ pub use sink::Sink;
 use std::fmt;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 /// Timestamp format used for every line: local time, millisecond precision.
 const TIMESTAMP: &str = "%Y-%m-%d %H:%M:%S%.3f";
 
+/// Filter level, kept out of [`Config`] and read without locking.
+///
+/// The whole point of a filter is to make disabled calls cheap, so it has to
+/// be readable *before* the sink mutex is taken — otherwise every `debug!` in
+/// a hot path pays for a lock plus a syscall's worth of contention.
+static FILTER: AtomicU8 = AtomicU8::new(Level::Info as u8);
+
 /// Mutable logger state. Kept behind one mutex: log lines are short and the
 /// lock is only held for the duration of a write.
 struct Config {
-    level: Level,
     sink: Sink,
     color: bool,
     show_target: bool,
@@ -74,13 +81,16 @@ static CONFIG: OnceLock<Mutex<Config>> = OnceLock::new();
 fn config() -> &'static Mutex<Config> {
     CONFIG.get_or_init(|| {
         Mutex::new(Config {
-            level: Level::Info,
             sink: Sink::Stderr,
             color: color_auto(),
             show_target: true,
             file: None,
         })
     })
+}
+
+fn filter() -> Level {
+    Level::from_index(FILTER.load(Ordering::Relaxed))
 }
 
 // ---------------------------------------------------------------- public API
@@ -107,19 +117,18 @@ pub fn init_from_env(variable: &str) -> Level {
 
 /// Set the filter level. Records below it are dropped.
 pub fn set_level(level: Level) {
-    if let Ok(mut config) = config().lock() {
-        config.level = level;
-    }
+    FILTER.store(level.index(), Ordering::Relaxed);
 }
 
 /// Current filter level.
 pub fn level() -> Level {
-    config().lock().map(|config| config.level).unwrap_or(Level::Off)
+    filter()
 }
 
 /// Is a record at this level going to be emitted?
 ///
-/// Use it to guard arguments that are expensive to build:
+/// Lock-free, so this is cheap enough to guard arguments that are expensive
+/// to build:
 ///
 /// ```no_run
 /// # let response = "";
@@ -128,7 +137,7 @@ pub fn level() -> Level {
 /// }
 /// ```
 pub fn enabled(level: Level) -> bool {
-    config().lock().map(|config| level >= config.level).unwrap_or(false)
+    level >= filter()
 }
 
 /// Redirect output. See [`Sink`].
@@ -164,18 +173,19 @@ pub fn set_show_target(on: bool) {
 
 /// Emit one record. Called by the macros; not meant to be called directly.
 ///
-/// The `Arguments` is passed straight through, so a filtered-out record costs
-/// a comparison and nothing else.
+/// The `Arguments` is passed straight through and the filter is checked
+/// before the sink lock is taken, so a filtered-out record really does cost
+/// one relaxed load and a comparison.
 #[doc(hidden)]
 pub fn log(level: Level, target: &str, args: fmt::Arguments<'_>) {
+    if level < filter() {
+        return;
+    }
     // A poisoned lock means another thread panicked while holding it. Logging
     // must not panic in turn, so lose the line and carry on.
     let Ok(mut config) = config().lock() else {
         return;
     };
-    if level < config.level {
-        return;
-    }
     let color = config.color && !matches!(config.sink, Sink::File(_));
     let line = format_line(level, target, color, config.show_target, args);
     config.write_line(&line);
@@ -235,10 +245,11 @@ fn format_line(
 }
 
 fn open_append(path: &Path) -> Option<std::fs::File> {
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            let _ = std::fs::create_dir_all(parent);
-        }
+    // let-chain: needs edition 2024, which this crate already uses
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        let _ = std::fs::create_dir_all(parent);
     }
     std::fs::OpenOptions::new()
         .create(true)
@@ -345,6 +356,7 @@ macro_rules! log_at {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     /// Timestamps are 23 chars: `YYYY-MM-DD HH:MM:SS.mmm`.
     const STAMP_LEN: usize = 23;
@@ -389,10 +401,19 @@ mod tests {
         assert!(!(Level::Error >= Level::Off));
     }
 
+    #[test]
+    fn index_round_trips_through_the_atomic_representation() {
+        for level in [Level::Trace, Level::Debug, Level::Info, Level::Warn, Level::Error, Level::Off] {
+            assert_eq!(Level::from_index(level.index()), level);
+        }
+        // Out of range falls back to the safe end of the scale.
+        assert_eq!(Level::from_index(200), Level::Off);
+    }
+
     /// The only test that touches global state, kept in one place so it cannot
     /// race with others.
     #[test]
-    fn file_sink_writes_and_escapes_nothing() {
+    fn file_sink_writes_and_global_level_round_trips() {
         let path = std::env::temp_dir().join(format!("logkit-test-{}.log", std::process::id()));
         let _ = std::fs::remove_file(&path);
 
@@ -402,12 +423,34 @@ mod tests {
         info!("written to a file {}", 42);
         debug!("second line");
 
+        // Filtering reads the atomic, and `enabled` must agree with `log`.
+        assert_eq!(level(), Level::Trace);
+        assert!(enabled(Level::Trace));
+        set_level(Level::Warn);
+        assert_eq!(level(), Level::Warn);
+        assert!(enabled(Level::Error));
+        assert!(!enabled(Level::Info));
+
         let text = std::fs::read_to_string(&path).expect("log file should exist");
         assert!(text.contains("INFO "), "{text}");
         assert!(text.contains("written to a file 42"), "{text}");
         assert!(text.contains("second line"), "{text}");
         // Colour must be suppressed for file output even though it is forced on.
         assert!(!text.contains('\x1b'), "file sink leaked escape codes: {text:?}");
+
+        // Regression: the filter has to be checked *before* the sink lock.
+        // With the lock first, a disabled call still queues behind whoever is
+        // writing, which is exactly what a filter exists to avoid.
+        set_level(Level::Off);
+        let held = config().lock().expect("sink lock");
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            crate::error!("filtered out, must not wait for the lock");
+            let _ = tx.send(());
+        });
+        let returned = rx.recv_timeout(Duration::from_secs(2)).is_ok();
+        drop(held);
+        assert!(returned, "a filtered-out record waited for the sink lock");
 
         // Restore defaults so other tests are unaffected.
         set_sink(Sink::Stderr);

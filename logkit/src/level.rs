@@ -51,6 +51,24 @@ impl Level {
         }
     }
 
+    /// Compact form for storage in an atomic. Inverse of [`Level::from_index`].
+    pub(crate) fn index(self) -> u8 {
+        self as u8
+    }
+
+    /// Rebuild a level from [`Level::index`]. Anything out of range is
+    /// treated as [`Level::Off`], which is the safe end of the scale.
+    pub(crate) fn from_index(value: u8) -> Level {
+        match value {
+            0 => Level::Trace,
+            1 => Level::Debug,
+            2 => Level::Info,
+            3 => Level::Warn,
+            4 => Level::Error,
+            _ => Level::Off,
+        }
+    }
+
     /// Parse a level name, case-insensitively. Returns `None` for anything
     /// unrecognised so the caller can decide whether to warn or fall back.
     pub fn parse(text: &str) -> Option<Level> {

@@ -5,8 +5,10 @@
 //! cargo run）启动时，控制台是复用的，窗口不会消失，这时平白多等 10 秒反而碍事
 //!
 //! 所以默认值按"窗口会不会消失"自动选：
-//!   - 独立控制台（双击 exe、ShellExecuteW runas 提权后新开的窗口）→ 停 10 秒，按键可提前关
-//!   - 复用终端（cmd / pwsh / cargo run）→ 不停，保持脚本友好
+//!
+//! - 独立控制台（双击 exe、ShellExecuteW runas 提权后新开的窗口）：停 10 秒，按键可提前关
+//! - 复用终端（cmd / pwsh / cargo run）：不停，保持脚本友好
+//!
 //! 再用 `--pause [秒]` / `--no-pause` 显式覆盖
 
 use std::sync::OnceLock;

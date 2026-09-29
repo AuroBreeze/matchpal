@@ -159,10 +159,10 @@ fn walk_json_pairs(node: &serde_json::Value, depth: usize, out: &mut Vec<(String
     match node {
         serde_json::Value::Object(map) => {
             for (key, value) in map.iter().take(200) {
-                if let Some(text) = value.as_str() {
-                    if !text.is_empty() {
-                        out.push((key.clone(), text.to_string()));
-                    }
+                if let Some(text) = value.as_str()
+                    && !text.is_empty()
+                {
+                    out.push((key.clone(), text.to_string()));
                 }
                 walk_json_pairs(value, depth + 1, out);
             }
@@ -222,7 +222,7 @@ fn body_is_text_like(content_type: &str) -> bool {
 ///   与原有的 `Transfer-Encoding: chunked` 头对不上
 /// - **不超上限**：超过 512KB 的不是接口响应，而是文件下载
 fn body_is_readable(content_type: &str, content_length: Option<u64>) -> bool {
-    body_is_text_like(content_type) && content_length.map_or(false, |len| len <= BODY_TEXT_LIMIT)
+    body_is_text_like(content_type) && content_length.is_some_and(|len| len <= BODY_TEXT_LIMIT)
 }
 
 /// 请求体：在 body_is_readable 之上再限定「会带 body 的方法」
@@ -232,7 +232,7 @@ fn request_body_is_readable(method: &str, content_type: &str, content_length: Op
 
 /// 响应体：只认 JSON(表单响应对抓 token 没意义)
 fn response_body_is_readable(content_type: &str, content_length: Option<u64>) -> bool {
-    content_type.to_ascii_lowercase().contains("json") && content_length.map_or(false, |len| len <= BODY_TEXT_LIMIT)
+    content_type.to_ascii_lowercase().contains("json") && content_length.is_some_and(|len| len <= BODY_TEXT_LIMIT)
 }
 
 /// 收集 body 文本并**原样重建** body(hudsucker 的 Body 实现了 HttpBody，可从 Bytes 还原)
@@ -306,20 +306,21 @@ impl TokenHandler {
         let host = host_of(url).unwrap_or_else(|| url.to_string());
         let names: Vec<&str> = fields.iter().map(|(key, _)| key.as_str()).collect();
         let line = format!("{host} 的 {}", names.join(", "));
-        if let Ok(mut seen) = self.ignored.lock() {
-            if seen.len() < 20 && !seen.contains(&line) {
-                seen.push(line.clone());
-            }
+        if let Ok(mut seen) = self.ignored.lock()
+            && seen.len() < 20
+            && !seen.contains(&line)
+        {
+            seen.push(line.clone());
         }
         debug!("忽略：{line}（主机不在白名单；用 --hosts 追加或 --any-host 放开）");
     }
 
     fn log_line(&self, line: &str) {
-        if let Some(file) = &self.log_all {
-            if let Ok(mut handle) = file.lock() {
-                use std::io::Write;
-                let _ = writeln!(handle, "{line}");
-            }
+        if let Some(file) = &self.log_all
+            && let Ok(mut handle) = file.lock()
+        {
+            use std::io::Write;
+            let _ = writeln!(handle, "{line}");
         }
     }
 
@@ -384,10 +385,10 @@ impl TokenHandler {
 
         // steamid 也要过白名单：17 位纯数字在无关站点上很常见(订单号、缓存键)，
         // 让它污染 extras 会导致最终写进配置的 steamid 是别人的
-        if self.host_allowed(&url) {
-            if let Some(sid) = &steamid {
-                self.remember("steamid", sid);
-            }
+        if self.host_allowed(&url)
+            && let Some(sid) = &steamid
+        {
+            self.remember("steamid", sid);
         }
         Hit { url, fields, steamid, from_response: false }
     }
@@ -529,18 +530,18 @@ fn write_config(path: &Path, hit: &Hit, extras: &HashMap<String, String>) -> std
         .fields
         .iter()
         .any(|(k, _)| k.to_ascii_lowercase().replace('_', "") == "accesstoken");
-    if !has_access_token {
-        if let Some((_, value)) = hit.fields.first() {
-            map.insert("access_token".into(), serde_json::json!(value));
-        }
+    if !has_access_token
+        && let Some((_, value)) = hit.fields.first()
+    {
+        map.insert("access_token".into(), serde_json::json!(value));
     }
     if let Some(steamid) = hit.steamid.clone().or_else(|| extras.get("steamid").cloned()) {
         map.insert("steamid".into(), serde_json::json!(steamid));
     }
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
     }
     std::fs::write(path, serde_json::to_string_pretty(&serde_json::Value::Object(map))?)
 }
@@ -555,8 +556,12 @@ async fn main() {
 
     let args = args_handler::parse_args();
 
-    // 级别在解析参数时就折算好了（--verbose / --log-level / FETCH_TOKEN_LOG）
-    logkit::set_level(args.log_level);
+    // 默认 info；FETCH_TOKEN_LOG 可覆盖，命令行再覆盖环境变量。
+    // 放在解析之后是有意的：这样 `--log-level off` 也不会把参数报错一起吞掉。
+    logkit::init_from_env("FETCH_TOKEN_LOG");
+    if let Some(level) = args.log_level {
+        logkit::set_level(level);
+    }
 
     if !platform::is_admin() && !args.no_elevate {
         if platform::elevate() {
@@ -669,6 +674,7 @@ async fn main() {
     });
 
     let mut captured = false;
+    let mut write_failed = false;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(args.timeout);
     // 用循环 + select，而不是在 select 分支里再借用 rx —— 那样会撞上"二次可变借用"
     loop {
@@ -690,10 +696,17 @@ async fn main() {
                     info!("    {key} = {masked}");
                 }
                 match write_config(&args.write_config, &hit, &extras_map) {
-                    Ok(()) => info!("已写入：{}", args.write_config.display()),
-                    Err(err) => error!("写配置失败：{err}"),
+                    Ok(()) => {
+                        info!("已写入：{}", args.write_config.display());
+                        captured = true;
+                    }
+                    // 抓到了但没落盘：绝不能算成功。这工具唯一的产物就是这个文件，
+                    // 报 0 会让脚本以为拿到了 token。
+                    Err(err) => {
+                        error!("写配置失败 {}：{err}", args.write_config.display());
+                        write_failed = true;
+                    }
                 }
-                captured = true;
                 if !args.keep_going {
                     break;
                 }
@@ -713,7 +726,9 @@ async fn main() {
     let _ = server.await;
     drop(guard);
 
-    if !captured {
+    // write_failed 也要排除掉：命中过但没写成时 captured 仍是 false，
+    // 不排除就会走进下面这段，报"没抓到"——那是错的，明明抓到了。
+    if !captured && !write_failed {
         let seen = ignored.lock().map(|list| list.clone()).unwrap_or_default();
         if !seen.is_empty() {
             warn!("以下候选的字段名命中了，但域名不在白名单，已忽略：");
@@ -724,6 +739,12 @@ async fn main() {
         }
         error!("没抓到 token。排查：1) 客户端是否走系统代理 2) 根证书是否装上 3) 加 --verbose 看请求");
         pause::exit_with(1);
+    }
+
+    // 4 = 抓到了但没写成：跟"没抓到"分开，脚本能据此重试
+    if write_failed {
+        error!("token 抓到了，但没能写入配置文件（见上面的错误）");
+        pause::exit_with(4);
     }
 
     // 成功路径也要留窗：双击运行时"已写入 config.local.json"这行字同样一闪而过
