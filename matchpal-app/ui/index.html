@@ -236,47 +236,30 @@
     .tile.good .value { color: var(--accent); }
     .tile.warn .value { color: var(--warn); }
 
-    /* ---------- 原始输出 ---------- */
-    details.raw { width: 100%; margin-top: 12px; }
-    details.raw summary {
-      list-style: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      font-family: var(--mono);
-      font-size: 10.5px;
-      letter-spacing: 0.1em;
-      color: var(--faint);
-      cursor: pointer;
-      padding: 4px 0;
-      transition: color 0.2s ease;
-    }
-    details.raw summary:hover { color: var(--muted); }
-    details.raw summary::-webkit-details-marker { display: none; }
-    details.raw summary .chev { font-size: 9px; transition: transform 0.2s ease; }
-    details.raw[open] summary .chev { transform: rotate(90deg); }
-    details.raw pre {
-      margin-top: 8px;
-      font-family: var(--mono);
-      font-size: 11px;
-      line-height: 1.55;
+    /* ---------- 日志里的原始输出条目 ---------- */
+    #log-wrap .raw-entry {
       color: var(--muted);
-      background: rgba(var(--sunken-rgb, 4, 8, 13), 0.55);
-      background: rgba(4, 8, 13, 0.55);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 12px 15px;
-      overflow: auto;
-      max-height: 240px;
+      white-space: pre-wrap;
+      border-left: 2px solid rgba(var(--accent-rgb), 0.35);
+      padding-left: 9px;
+      margin: 6px 0;
       user-select: text;
     }
+    #log-wrap .raw-entry .raw-title {
+      color: var(--accent);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      margin-bottom: 4px;
+    }
 
-    #table-card {
-      display: none;
-      flex-direction: column;
-      margin: auto;
-      width: fit-content;
-      max-width: 100%;
+    /* ---------- 双队分表 ---------- */
+    #teams {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      width: 100%;
+    }
+    .team-card {
       background: var(--panel);
       -webkit-backdrop-filter: var(--glass-filter);
       backdrop-filter: var(--glass-filter);
@@ -286,87 +269,101 @@
       overflow: hidden;
       animation: rise 0.35s cubic-bezier(0.2, 0.7, 0.3, 1);
     }
-    #table-card.show { display: flex; }
+    .team-card.t { animation-delay: 0.06s; }
     @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-    #table-card .card-head {
+    .team-card .card-head {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 16px;
+      gap: 8px;
+      padding: 10px 14px;
       border-bottom: 1px solid var(--line);
       font-family: var(--mono);
-      font-size: 10.5px;
+      font-size: 11px;
+      font-weight: 600;
       letter-spacing: 0.14em;
-      color: var(--faint);
     }
-    #table-card .card-head::before {
+    .team-card .card-head::before {
       content: "";
       width: 6px; height: 6px;
       border-radius: 50%;
-      background: var(--ok);
-      box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.55);
     }
+    .team-card.ct .card-head { color: var(--accent); }
+    .team-card.ct .card-head::before { background: var(--accent); box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.55); }
+    .team-card.t .card-head { color: var(--blue); }
+    .team-card.t .card-head::before { background: var(--blue); box-shadow: 0 0 6px rgba(115, 189, 245, 0.55); }
+    .team-card .card-head .spacer { flex: 1; }
     .meta-chip {
       font-family: var(--mono);
-      font-size: 10.5px;
+      font-size: 10px;
       color: var(--muted);
       background: var(--control);
       border: 1px solid var(--line);
       border-radius: 6px;
-      padding: 2px 9px;
+      padding: 2px 8px;
       letter-spacing: 0.02em;
     }
-    table#stats {
+    table.team {
       border-collapse: collapse;
-      font-size: 12.5px;
-      min-width: 760px;
+      width: 100%;
+      font-size: 12px;
     }
-    #stats th {
+    .team th {
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 500;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      letter-spacing: 0.08em;
       color: var(--faint);
       text-align: right;
-      padding: 9px 12px;
+      padding: 8px 10px;
       border-bottom: 1px solid var(--line-strong);
       white-space: nowrap;
     }
-    #stats th.player, #stats td.player { text-align: left; }
-    #stats td {
-      padding: 7px 12px;
+    .team th.player, .team td.player { text-align: left; }
+    .team td {
+      padding: 6px 10px;
       border-bottom: 1px solid var(--line);
       font-family: var(--mono);
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--text);
       text-align: right;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
-    #stats tr:last-child td { border-bottom: none; }
-    #stats tbody tr { transition: background 0.15s ease; }
-    #stats tbody tr:hover { background: rgba(var(--overlay-rgb), 0.045); }
-    #stats td.side {
+    .team tbody tr { transition: background 0.15s ease; }
+    .team tbody tr:hover { background: rgba(var(--overlay-rgb), 0.045); }
+    .team td.player {
+      font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+      font-size: 12px;
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .team td.player .sid { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+    .team td .dim { color: var(--faint); }
+    .team .rating { font-weight: 600; }
+    .team .rating.great { color: var(--accent); }
+    .team .rating.low { color: var(--warn); }
+    .team .rating.poor { color: var(--bad); }
+    /* 每列最高分：提亮 + 小三角 */
+    .team td.top { color: var(--accent); font-weight: 600; }
+    .team td .top-mark { font-size: 8px; margin-left: 3px; vertical-align: 1px; }
+    /* 平均行 */
+    .team tfoot td {
+      border-top: 1px solid var(--line-strong);
+      border-bottom: none;
+      background: var(--control);
+      color: var(--muted);
       font-family: var(--mono);
-      font-size: 10px;
-      font-weight: 600;
+      font-size: 10.5px;
+      padding: 7px 10px;
+      text-align: right;
+    }
+    .team tfoot td.avg-label {
+      text-align: left;
       letter-spacing: 0.12em;
       color: var(--faint);
+      font-size: 9.5px;
     }
-    #stats td.side.ct { color: var(--accent); }
-    #stats td.side.t { color: var(--blue); }
-    #stats td.player { font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif; font-size: 12.5px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
-    #stats td.player .sid { font-family: var(--mono); font-size: 11px; color: var(--faint); }
-    #stats td .dim { color: var(--faint); }
-    #stats .rating { font-weight: 600; }
-    #stats .rating.great { color: var(--accent); }
-    #stats .rating.low { color: var(--warn); }
-    #stats .rating.poor { color: var(--bad); }
-
-    #table-card .card-head .spacer { flex: 1; }
-    table#stats { user-select: text; }
-    #table-card { align-self: center; }
 
     /* ---------- 空状态 ---------- */
     #empty {
@@ -485,36 +482,7 @@
     <div id="table-wrap">
       <div id="report-stack">
         <div id="dashboard"></div>
-        <div id="table-card">
-          <div class="card-head">
-            MATCH SNAPSHOT
-            <span class="spacer"></span>
-            <span class="meta-chip" id="map-chip" style="display:none"></span>
-            <span class="meta-chip" id="count-chip" style="display:none"></span>
-          </div>
-          <div style="overflow-x: auto; padding: 6px 10px 10px;">
-            <table id="stats">
-              <thead>
-                <tr>
-                  <th>阵营</th>
-                  <th class="player">玩家</th>
-                  <th>ratingPro</th>
-                  <th>K/D</th>
-                  <th>ADR</th>
-                  <th>WE</th>
-                  <th>爆头率</th>
-                  <th>地图胜率</th>
-                  <th>PP分</th>
-                </tr>
-              </thead>
-              <tbody id="stats-body"></tbody>
-            </table>
-          </div>
-        </div>
-        <details class="raw">
-          <summary><span class="chev">▶</span> CLI 原始输出</summary>
-          <pre id="raw-pre"></pre>
-        </details>
+        <div id="teams"></div>
       </div>
       <div id="empty">
         <div class="glyph">[ && ]</div>
@@ -555,44 +523,89 @@
     }
 
     /** 用结构化数据画真正的表格：阵营分色、rating 分档、数字等宽右对齐 */
-    function renderReport(data) {
-      const body = el("stats-body");
-      body.innerHTML = "";
-      const chipMap = el("map-chip");
-      chipMap.style.display = data.map ? "" : "none";
-      chipMap.textContent = data.map || "";
-      const total = data.ct.length + data.t.length;
-      const chipCount = el("count-chip");
-      chipCount.style.display = "";
-      chipCount.textContent = `CT ${data.ct.length} / T ${data.t.length}${data.unknown ? ` · 未识别 ${data.unknown}` : ""}`;
+    const STAT_COLS = [
+      { key: "rating_pro", label: "ratingPro", render: (v) => fmt(v), cls: true },
+      { key: "kd", label: "K/D", render: (v) => fmt(v) },
+      { key: "adr", label: "ADR", render: (v) => fmt(v, 1) },
+      { key: "we", label: "WE", render: (v) => fmt(v, 1) },
+      { key: "head_shot_rate", label: "爆头率", render: fmtPct },
+      { key: "map_win_rate", label: "地图胜率", render: fmtPct },
+      { key: "pvp_score", label: "PP分", render: (v) => (v == null ? null : String(Math.round(v))) },
+    ];
 
-      for (const [side, cls, rows] of [["CT", "ct", data.ct], ["T", "t", data.t]]) {
-        for (const row of rows) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td class="side ${cls}">${side}</td>
-            <td class="player" title="${row.steamid}">${
-              row.nickname ? escapeHtml(row.nickname) : `<span class="sid">${row.steamid}</span>`
-            }</td>
-            <td class="rating ${ratingClass(row.rating_pro)}">${fmt(row.rating_pro)}</td>
-            <td>${fmt(row.kd)}</td>
-            <td>${fmt(row.adr, 1)}</td>
-            <td>${fmt(row.we, 1)}</td>
-            <td>${fmtPct(row.head_shot_rate)}</td>
-            <td>${fmtPct(row.map_win_rate)}</td>
-            <td>${row.pvp_score ?? '<span class="dim">—</span>'}</td>`;
-          body.appendChild(tr);
-        }
-      }
+    /** CT / T 分开渲染：每队一张卡，各列最高分标注，表底平均行 */
+    function renderReport(data) {
+      const teams = el("teams");
+      teams.innerHTML = "";
+      teams.append(buildTeamCard("CT", "ct", data.ct));
+      teams.append(buildTeamCard("T", "t", data.t));
       renderDashboard(data);
       el("report-stack").classList.add("show");
-      el("table-card").classList.add("show");
       el("empty").style.display = "none";
-      // 重新触发入场动画
-      const card = el("table-card");
-      card.style.animation = "none";
-      void card.offsetWidth;
-      card.style.animation = "";
+    }
+
+    function buildTeamCard(side, cls, rows) {
+      const card = document.createElement("div");
+      card.className = `team-card ${cls}`;
+
+      const head = document.createElement("div");
+      head.className = "card-head";
+      head.innerHTML = `${side} 队伍<span class="spacer"></span><span class="meta-chip">${rows.length} 人</span>`;
+      card.appendChild(head);
+
+      // 各列最高分（本队内比较）
+      const maxes = {};
+      for (const col of STAT_COLS) {
+        const vals = rows.map((r) => r[col.key]).filter((v) => v != null);
+        maxes[col.key] = vals.length ? Math.max(...vals) : null;
+      }
+      // 各列平均值（同为表底的"平均行"）
+      const avgs = {};
+      for (const col of STAT_COLS) {
+        const vals = rows.map((r) => r[col.key]).filter((v) => v != null);
+        avgs[col.key] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      }
+
+      const wrap = document.createElement("div");
+      wrap.style.overflowX = "auto";
+      const table = document.createElement("table");
+      table.className = "team";
+      table.innerHTML = `
+        <thead><tr>
+          <th class="player">玩家</th>
+          ${STAT_COLS.map((c) => `<th>${c.label}</th>`).join("")}
+        </tr></thead>`;
+      const tbody = document.createElement("tbody");
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        let cells = `
+          <td class="player" title="${row.steamid}">${
+            row.nickname ? escapeHtml(row.nickname) : `<span class="sid">${row.steamid}</span>`
+          }</td>`;
+        for (const col of STAT_COLS) {
+          const value = row[col.key];
+          const isTop = value != null && maxes[col.key] != null && value === maxes[col.key];
+          const rendered = value == null ? '<span class="dim">—</span>' : col.render(value);
+          const ratingCls = col.cls ? `rating ${ratingClass(value)}` : "";
+          cells += `<td class="${ratingCls}${isTop ? " top" : ""}">${rendered}${
+            isTop ? '<span class="top-mark">▲</span>' : ""
+          }</td>`;
+        }
+        tr.innerHTML = cells;
+        tr.title = row.steamid;
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      const tfoot = document.createElement("tfoot");
+      tfoot.innerHTML = `
+        <tr>
+          <td class="avg-label">平均值</td>
+          ${STAT_COLS.map((c) => `<td>${avgs[c.key] == null ? '<span class="dim">—</span>' : c.render(avgs[c.key])}</td>`).join("")}
+        </tr>`;
+      table.appendChild(tfoot);
+      wrap.appendChild(table);
+      card.appendChild(wrap);
+      return card;
     }
 
     /** 仪表盘指标卡：与 token-monitor 的数据面板同风格 */
@@ -704,13 +717,31 @@
       el("log-count").textContent = ++logCount;
     }
 
+    /** CLI 原始输出：作为日志抽屉里的一条特殊条目 */
+    function appendRaw(text) {
+      const wrap = el("log-wrap");
+      const placeholder = wrap.querySelector(".empty-log");
+      if (placeholder) placeholder.remove();
+      const entry = document.createElement("div");
+      entry.className = "raw-entry";
+      const title = document.createElement("div");
+      title.className = "raw-title";
+      title.textContent = "CLI RAW OUTPUT";
+      const pre = document.createElement("div");
+      pre.textContent = text;
+      entry.append(title, pre);
+      wrap.appendChild(entry);
+      wrap.scrollTop = wrap.scrollHeight;
+      el("log-count").textContent = ++logCount;
+    }
+
     /** 兜底：拿不到结构化数据时退回 ASCII 文本 */
     function renderTable(text) {
       el("report-stack").classList.add("show");
-      el("table-card").classList.add("show");
       el("empty").style.display = "none";
-      const body = el("stats-body");
-      body.innerHTML = `<tr><td class="player" colspan="9" style="white-space:pre;font-family:var(--mono);font-size:12px">${escapeHtml(text)}</td></tr>`;
+      const teams = el("teams");
+      teams.innerHTML = `<div class="team-card ct"><div class="card-head">原始输出</div>
+        <div style="padding:12px 14px;overflow-x:auto"><pre style="margin:0;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--muted);user-select:text">${escapeHtml(text)}</pre></div></div>`;
     }
 
     async function refreshTokenStatus() {
@@ -758,7 +789,8 @@
           const report = ev.data && ev.data.data;
           if (report && report.ct !== undefined) renderReport(report);
           else renderTable((ev.data && ev.data.text) || "（没有内容）");
-          el("raw-pre").textContent = (ev.data && ev.data.text) || "";
+          // CLI 原始输出进日志抽屉
+          if (ev.data && ev.data.text) appendRaw(ev.data.text);
           setStatus("已出表");
           showRoster(0, 0);
           el("pulse").classList.remove("on");
