@@ -223,7 +223,9 @@ fn watch(
                 if let Err(err) = ws.subscribe(&credentials.steamid) {
                     debug!("重新订阅失败：{err}");
                 } else {
-                    info!("尚未收到对局数据，重新发送订阅");
+                    info!("已等待 {:.0} 秒未收到对局数据，重新订阅（之后每 {} 秒一次）",
+                        last_subscribe.map(|at| at.elapsed().as_secs_f64()).unwrap_or(0.0),
+                        args.resubscribe);
                 }
                 last_subscribe = Some(Instant::now());
             }
