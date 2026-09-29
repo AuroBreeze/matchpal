@@ -753,14 +753,17 @@
         case "Notice":
           appendLog(ev.data.level, ev.data.message);
           break;
-        case "Report":
-          if (ev.data && ev.data.ct !== undefined) renderReport(ev.data);
-          else renderTable("（本帧没有结构化数据）");
+        case "Report": {
+          // 载荷是 { text, data: GuiReport }：结构化数据在 ev.data.data 里
+          const report = ev.data && ev.data.data;
+          if (report && report.ct !== undefined) renderReport(report);
+          else renderTable((ev.data && ev.data.text) || "（没有内容）");
           el("raw-pre").textContent = (ev.data && ev.data.text) || "";
           setStatus("已出表");
           showRoster(0, 0);
           el("pulse").classList.remove("on");
           break;
+        }
         case "Finished":
           setRunning(false);
           break;
