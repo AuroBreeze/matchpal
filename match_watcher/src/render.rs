@@ -201,7 +201,7 @@ pub fn render_unknown_sides(teams: &Teams) -> Option<String> {
         .map(|player| format!("{}（{}）", player.steamid, player.side.label()))
         .collect();
     Some(format!(
-        "有 {} 人的阵营认不出来，未计入表格（推送里的 side 可能变了）：{}",
+        "有 {} 人的阵营无法识别，未计入表格（推送中的 side 可能已变更）：{}",
         teams.unknown.len(),
         list.join("、")
     ))

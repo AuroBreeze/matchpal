@@ -70,38 +70,38 @@ impl Default for Args {
 }
 
 const HELP: &str = "\
-监听完美世界电竞当前对局：拿 matchId 与 10 人名单，可选合并战绩
+监听完美世界电竞当前对局：获取 matchId 与 10 人名单，可选合并战绩
 
   --config <文件>      token 与 steamid 的配置文件（默认 config.local.json）
-  --token <token>      覆盖配置文件里的 access_token
-  --steamid <id>       覆盖配置文件里的 steamid（17 位 SteamID64）
+  --token <token>      覆盖配置文件中的 access_token
+  --steamid <id>       覆盖配置文件中的 steamid（17 位 SteamID64）
   --platform <编号>    平台编号（默认 2）
-  --once               收到第一帧就退出（不等人齐，调试用）
-  --full <人数>        名单够这么多人就出战绩表并停止（默认 10，0 = 不等满）
-  --keep-going         出表后不退出，继续监听（持续模式）
-  --stats              额外把战绩并进表格（人满出表时本来就会查，这个留着给 --once/持续模式）
+  --once               收到第一帧即退出（不等待名单满员，调试用）
+  --full <人数>        名单达到该人数即输出战绩表并停止（默认 10，0 = 不限制）
+  --keep-going         输出表格后不退出，继续监听（持续模式）
+  --stats              额外将战绩并入表格（人满出表时已默认查询；用于 --once / 持续模式）
   --timeout <秒>       最长运行时间，0 为不限（默认 0）
-  --json-out <文件>    快照写到哪（默认 capture/match_snapshot.json）
+  --json-out <文件>    快照写入路径（默认 capture/match_snapshot.json）
   --no-json-out        不写快照文件
   --export <写法>      追加导出目标，形如 json:文件 或 ndjson:文件；可重复
-  --resubscribe <秒>   还没收到对局数据时，每隔这么多秒重新订阅一次，0 为关闭（默认 15）
+  --resubscribe <秒>   未收到对局数据时，每隔该秒数重新订阅一次，0 为关闭（默认 15）
   --retries <次数>     断线/连接失败的重试次数（默认 5）
-  --check              只校验 token 是否有效（有效 0 / 无效 1）
-  --replay <文件>      离线回放一帧保存下来的推送（不连 WebSocket）
+  --check              仅校验 token 是否有效（有效 0 / 无效 1）
+  --replay <文件>      离线回放已保存的推送帧（不连接 WebSocket）
   --log-level <级别>   trace/debug/info/warn/error/off（默认 info）
   --verbose            等价于 --log-level debug：打印所有 WS 帧
   --help               显示本帮助
 
-环境变量 MATCH_WATCHER_LOG 也能设级别。
+环境变量 MATCH_WATCHER_LOG 也能设置级别。
 
 退出码：
-  0 正常结束          1 token 无效 / 没收到对局推送
+  0 正常结束          1 token 无效 / 未收到对局推送
   2 配置或参数错误
 
 导出目标（--export）：
   json:<文件>          覆盖写，一帧一份完整 JSON
-  ndjson:<文件>        追加，一帧一行，方便下游 tail
-  Windows 盘符里的冒号不会被切坏（只按第一个冒号切分）。
+  ndjson:<文件>        追加，一帧一行，便于下游 tail
+  Windows 盘符中的冒号不会被切坏（仅按第一个冒号切分）。
 ";
 
 /// 解析结果
@@ -122,7 +122,7 @@ pub fn parse_args() -> Args {
             std::process::exit(EXIT_OK);
         }
         Err(ParseError::Message(text)) => {
-            logkit::error!("{text}（用 --help 看用法）");
+            logkit::error!("{text}（使用 --help 查看用法）");
             std::process::exit(EXIT_ARGS);
         }
     }

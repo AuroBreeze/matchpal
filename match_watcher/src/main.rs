@@ -76,10 +76,10 @@ fn run(args: &Args) -> i32 {
     }
 
     if !credentials.has_token() {
-        error!(
-            "没有 token：先跑 fetch_token 抓一次，或用 --token 指定（读的是 {}）",
-            args.config.display()
-        );
+            error!(
+                "缺少 token：请先运行 fetch_token 获取，或通过 --token 指定（读取 {}）",
+                args.config.display()
+            );
         return EXIT_ARGS;
     }
 
@@ -88,7 +88,7 @@ fn run(args: &Args) -> i32 {
     }
 
     if !credentials.has_steamid() {
-        error!("没有 steamid：配置里缺 17 位 SteamID64，用 --steamid 指定");
+        error!("缺少 steamid：配置文件中缺少 17 位 SteamID64，请通过 --steamid 指定");
         return EXIT_ARGS;
     }
 
@@ -103,7 +103,7 @@ fn run(args: &Args) -> i32 {
     let ws_url = match api.websocket_url(args.platform) {
         Ok(url) => url,
         Err(err) => {
-            error!("取 websocketUrl 失败：{err}");
+            error!("获取 websocketUrl 失败：{err}");
             return EXIT_TOKEN_INVALID;
         }
     };
@@ -136,11 +136,11 @@ fn check(args: &Args, credentials: &Credentials) -> i32 {
                 "接口连通（{}），ws={url}",
                 credentials.masked_token()
             );
-            warn!("提醒：getWebsocketInfo 不校验 token，这里通只说明网络与接口正常");
+            warn!("注意：getWebsocketInfo 不校验 token，此结果仅表明网络与接口可用");
             EXIT_OK
         }
         Err(err) => {
-            error!("取 websocketUrl 失败：{err}");
+            error!("获取 websocketUrl 失败：{err}");
             EXIT_TOKEN_INVALID
         }
     }
@@ -173,7 +173,7 @@ fn watch(
 
     loop {
         if args.timeout > 0.0 && started.elapsed().as_secs_f64() > args.timeout {
-            info!("达到超时 {}s，退出", args.timeout);
+            info!("已达到超时时间 {}s，即将退出", args.timeout);
             break;
         }
 
@@ -183,7 +183,7 @@ fn watch(
                 Ok(mut ws) => {
                     // 顺序照抄 Python：先 ping，再订阅
                     if let Err(err) = ws.ping() {
-                        debug!("首发心跳失败：{err}");
+                        debug!("初始心跳发送失败：{err}");
                     }
                     if let Err(err) = ws.subscribe(&credentials.steamid) {
                         warn!("订阅失败：{err}");
@@ -192,15 +192,15 @@ fn watch(
                     last_subscribe = Some(Instant::now());
                     attempts = 0;
                     session = Some(ws);
-                    info!("WebSocket 已连接并订阅，等名单攒够 {} 人", args.full);
+                    info!("WebSocket 已连接并完成订阅，等待名单达到 {} 人", args.full);
                 }
                 Err(err) => {
                     attempts += 1;
                     if attempts > args.retries {
-                        error!("连接失败 {attempts} 次，放弃：{err}");
+                        error!("连接失败 {attempts} 次，停止重试：{err}");
                         break;
                     }
-                    warn!("连接失败（{err}），3 秒后重试…");
+                    warn!("连接失败（{err}），3 秒后重试");
                     std::thread::sleep(Duration::from_secs(3));
                     continue;
                 }
@@ -223,7 +223,7 @@ fn watch(
                 if let Err(err) = ws.subscribe(&credentials.steamid) {
                     debug!("重新订阅失败：{err}");
                 } else {
-                    info!("还没收到对局数据，重新订阅一次");
+                    info!("尚未收到对局数据，重新发送订阅");
                 }
                 last_subscribe = Some(Instant::now());
             }
@@ -240,10 +240,10 @@ fn watch(
                 }
                 attempts += 1;
                 if attempts > args.retries {
-                    error!("连接断开 {attempts} 次，不再重连：{err}");
+                    error!("连接断开 {attempts} 次，停止重连：{err}");
                     break;
                 }
-                warn!("连接断开：{err}，3 秒后重连（第 {attempts} 次）");
+                warn!("连接断开：{err}，3 秒后进行第 {attempts} 次重连");
                 std::thread::sleep(Duration::from_secs(3));
                 continue;
             }
@@ -260,7 +260,7 @@ fn watch(
         // 名单还没攒够：报个进度继续等（这就是"人满才出表"的等待过程）
         let full = args.full == 0 || loaded >= args.full;
         if !full && stop == Stop::WhenFull {
-            info!("名单 {loaded}/{}，继续等…", args.full);
+            info!("名单 {loaded}/{}，继续等待", args.full);
             continue;
         }
 
@@ -277,16 +277,16 @@ fn watch(
         // 一帧都没收到：如果之前攒了半份名单，也出一张（人数不足会写明）
         if let Some(info) = last_info.take() {
             let loaded = info.players().len();
-            warn!("没收到完整推送，按现有名单 {} 人出表", loaded);
+            warn!("未收到完整推送，按现有名单 {} 人生成表格", loaded);
             let stats = fetch_report(api, &info);
             emit_final(&info, &stats, loaded, args.full, exporters);
             return EXIT_OK;
         }
         error!(
-            "没收到对局推送（messageType 10002）。可能原因：\n  \
-             · 当前不在对局里 —— 这个推送只在你正在打的时候才有\n  \
-             · token 失效（重新跑 fetch_token）\n  \
-             · steamid 不对（要 17 位 SteamID64，且是**你自己的**）"
+            "未收到对局推送（messageType 10002）。可能原因：\n  \
+             · 当前不在对局中 —— 该推送仅在比赛进行期间出现\n  \
+             · token 已失效（请重新运行 fetch_token）\n  \
+             · steamid 不正确（须为 17 位 SteamID64，且为本账号）"
         );
         return EXIT_NO_PUSH;
     }
@@ -301,7 +301,7 @@ fn replay(args: &Args, path: &PathBuf, credentials: &Credentials) -> i32 {
     let text = match std::fs::read_to_string(path) {
         Ok(text) => text,
         Err(err) => {
-            error!("读不了回放文件 {}：{err}", path.display());
+            error!("无法读取回放文件 {}：{err}", path.display());
             return EXIT_ARGS;
         }
     };
@@ -340,20 +340,20 @@ fn replay(args: &Args, path: &PathBuf, credentials: &Credentials) -> i32 {
     let info = MatchInfo::new(data);
     let loaded = info.players().len();
     if loaded == 0 {
-        error!("回放文件里既没有 playerList，也不像战绩响应");
+        error!("回放文件中既无 playerList，也无法识别为战绩响应");
         return EXIT_ARGS;
     }
     let report = if let Some(stats) = value.get("stats")
         && StatsReport::flat_looks_usable(stats)
     {
         // 快照文件（push + stats 都在里面）：完全离线，不用联网
-        info!("用快照里自带的战绩数据（离线）");
+        info!("使用快照内包含的战绩数据（离线）");
         StatsReport::from_flat(stats, &info)
     } else if credentials.has_token() {
         let api = Api::new(credentials.token.clone(), credentials.steamid.clone());
         fetch_report(&api, &info)
     } else {
-        warn!("没有 token，出不了昵称表（昵称只在战绩接口里）");
+        warn!("缺少 token，无法生成昵称表（昵称仅存在于战绩接口返回中）");
         StatsReport::default()
     };
     emit_final(&info, &report, loaded, args.full, &mut exporters);
@@ -366,7 +366,7 @@ fn fetch_report(api: &Api, info: &MatchInfo) -> StatsReport {
     let ct: Vec<String> = teams.ct.iter().map(|player| player.steamid.clone()).collect();
     let t: Vec<String> = teams.t.iter().map(|player| player.steamid.clone()).collect();
     if ct.is_empty() && t.is_empty() {
-        warn!("名单是空的，跳过战绩查询");
+        warn!("名单为空，跳过战绩查询");
         return StatsReport::default();
     }
     match api.team_stats(&ct, &t, info.map().unwrap_or_default().as_str()) {
@@ -375,7 +375,7 @@ fn fetch_report(api: &Api, info: &MatchInfo) -> StatsReport {
             report
         }
         Err(err) => {
-            warn!("战绩接口调用失败（名单仍然可看）：{err}");
+            warn!("战绩接口调用失败（名单信息仍可查看）：{err}");
             StatsReport::default()
         }
     }
@@ -396,7 +396,7 @@ fn emit_final(
 
     // 表格是"产品"，走 stdout；日志走 stderr，两者不混
     if report.is_empty() {
-        warn!("没有战绩数据，退回按 SteamID 的实时表（昵称需要战绩接口）");
+        warn!("无战绩数据，回退为按 SteamID 显示的实时表格（昵称依赖战绩接口）");
         print!("{}", render_match(info, &StatsMap::new(), false));
     } else {
         // 人数以推送帧为准（战绩接口只回它认识的），所以 two 个数字都传进去

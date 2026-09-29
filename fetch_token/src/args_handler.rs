@@ -25,13 +25,13 @@ fetch access_token
 
   --port <端口>           本机监听端口（默认 8080）
   --out <目录>            工作目录，放 CA 证书（默认 capture）
-  --write-config <文件>   命中后写这里（默认 config.local.json）
-  --names <列表>          要抓的字段名，逗号分隔
+  --write-config <文件>   命中后写入该文件（默认 config.local.json）
+  --names <列表>          要捕获的字段名，逗号分隔
   --hosts <域名列表>      在默认白名单之外再追加域名（逗号分隔）
-  --any-host              不限制域名（噪声大：CSRF/资讯流 token 也会被写入）
+  --any-host              不限制域名（无关噪声较多：CSRF/资讯流 token 也会被写入）
   --ca-store <machine|user> 证书装机器库（需管理员，默认）还是当前用户库
   --timeout <秒>          最长运行时间（默认 300）
-  --keep-going            命中后不退出，继续跑
+  --keep-going            命中后不退出，继续运行
   --keep-ca               结束后保留根证书（默认卸载）
   --log-all <文件>        把所有经过的请求 URL 记录到该文件
   --log-level <级别>      trace/debug/info/warn/error/off（默认 info）
@@ -41,12 +41,12 @@ fetch access_token
   --no-pause              结束就关窗口，不留（脚本/CI 用）
   --help                  显示本帮助
 
-环境变量 FETCH_TOKEN_LOG 也能设级别；双击运行时没法加参数，用它更顺手。
+环境变量 FETCH_TOKEN_LOG 也能设置级别；双击运行时无法附加参数，可使用该环境变量。
 
 退出码：
-  0 抓到并写入配置      1 超时未命中
+  0 捕获并写入配置      1 超时未命中
   2 环境/参数错误        3 提权被拒绝
-  4 抓到了但写配置失败
+  4 已捕获但写入配置失败
 ";
 
 /// 解析命令行。日志级别只在这里折算成 `Option<Level>`，
@@ -172,7 +172,7 @@ pub fn parse_args() -> Args {
                 pause::exit_with(0);
             }
             other => {
-                logkit::error!("未知参数：{other}（用 --help 看用法）");
+                logkit::error!("未知参数：{other}（使用 --help 查看用法）");
                 pause::exit_with(2);
             }
         }

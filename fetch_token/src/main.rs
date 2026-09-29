@@ -312,7 +312,7 @@ impl TokenHandler {
         {
             seen.push(line.clone());
         }
-        debug!("忽略：{line}（主机不在白名单；用 --hosts 追加或 --any-host 放开）");
+        debug!("已忽略：{line}（主机不在白名单；请通过 --hosts 追加或使用 --any-host 取消限制）");
     }
 
     fn log_line(&self, line: &str) {
@@ -565,12 +565,12 @@ async fn main() {
 
     if !platform::is_admin() && !args.no_elevate {
         if platform::elevate() {
-            info!("已发起提权，请在 UAC 弹窗点“是”——活儿会在新窗口里继续");
+            info!("已请求提权，请在 UAC 弹窗中点击“是”，后续操作将在新窗口中继续");
             // 提权后的新窗口是独立控制台，那边的 exit_with 会自动留窗。
             // 这里也得走闸门：万一用户是从双击的窗口启动的，这个窗口马上要关了。
             pause::exit_with(0);
         }
-        error!("提权被拒绝；请右键“以管理员身份运行”后重试");
+        error!("提权被拒绝；请以管理员身份运行后重试");
         pause::exit_with(3);
     }
 
@@ -595,7 +595,7 @@ async fn main() {
             }
         }
         // 不致命：只是 HTTPS 解不开，继续跑让用户自己决定
-        Err(err) => warn!("装根证书失败（HTTPS 不会被解密）：{err}"),
+        Err(err) => warn!("安装根证书失败（HTTPS 流量将无法解密）：{err}"),
     }
 
     // ---- 设系统代理
@@ -608,7 +608,7 @@ async fn main() {
             );
             guard.proxy_prev = Some(prev);
         }
-        Err(err) => warn!("设置系统代理失败（请手动把系统代理指向 127.0.0.1:{}）：{err}", args.port),
+        Err(err) => warn!("设置系统代理失败（请手动将系统代理指向 127.0.0.1:{}）：{err}", args.port),
     }
 
     // ---- 启动代理
@@ -660,11 +660,11 @@ async fn main() {
     };
 
     info!("本地代理已监听 http://127.0.0.1:{}", args.port);
-    info!("现在去客户端里操作（登录/点头像即可），命中 {} 就自动收工", args.names.join(", "));
+    info!("请在客户端中进行操作（登录或进入个人页面即可），命中 {} 后将自动完成并退出", args.names.join(", "));
     if args.hosts.is_empty() {
-        warn!("注意：未限制域名（--any-host），CSRF/资讯流之类的一次性 token 也可能被写入");
+        warn!("注意：未限制域名（--any-host），CSRF、资讯流等无关的一次性 token 也可能被写入");
     } else {
-        info!("只接受这些域名的字段：{}", args.hosts.join(", "));
+        info!("仅接受以下域名的字段：{}", args.hosts.join(", "));
     }
 
     let server = tokio::spawn(async move {
@@ -712,11 +712,11 @@ async fn main() {
                 }
             }
             _ = tokio::time::sleep_until(deadline) => {
-                warn!("达到超时 {}s，未命中", args.timeout);
+                warn!("已达到超时时间 {}s，未命中", args.timeout);
                 break;
             }
             _ = tokio::signal::ctrl_c() => {
-                info!("收到 Ctrl+C");
+                info!("收到 Ctrl+C，即将退出");
                 break;
             }
         }
@@ -731,19 +731,19 @@ async fn main() {
     if !captured && !write_failed {
         let seen = ignored.lock().map(|list| list.clone()).unwrap_or_default();
         if !seen.is_empty() {
-            warn!("以下候选的字段名命中了，但域名不在白名单，已忽略：");
+            warn!("以下候选字段名命中，但域名不在白名单，已忽略：");
             for line in &seen {
                 warn!("- {line}");
             }
-            warn!("若其中确实有目标接口，用 --hosts <域名> 追加后重跑。");
+            warn!("若其中包含目标接口，请通过 --hosts <域名> 追加后重新运行。");
         }
-        error!("没抓到 token。排查：1) 客户端是否走系统代理 2) 根证书是否装上 3) 加 --verbose 看请求");
+        error!("未捕获 token。请排查：1) 客户端是否使用系统代理 2) 根证书是否已安装 3) 添加 --verbose 查看请求");
         pause::exit_with(1);
     }
 
     // 4 = 抓到了但没写成：跟"没抓到"分开，脚本能据此重试
     if write_failed {
-        error!("token 抓到了，但没能写入配置文件（见上面的错误）");
+        error!("已捕获 token，但未能写入配置文件（见上方错误）");
         pause::exit_with(4);
     }
 

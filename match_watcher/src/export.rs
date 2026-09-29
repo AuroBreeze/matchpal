@@ -61,10 +61,10 @@ impl std::fmt::Display for ExportError {
             ExportError::Io(err) => write!(f, "写文件失败：{err}"),
             ExportError::Json(err) => write!(f, "序列化失败：{err}"),
             ExportError::UnknownKind(kind) => {
-                write!(f, "不认识的导出类型：{kind}（目前支持 json / ndjson）")
+                write!(f, "无法识别的导出类型：{kind}（目前支持 json / ndjson）")
             }
             ExportError::BadSpec(spec) => {
-                write!(f, "导出写法不对：{spec}（形如 json:capture/match.json）")
+                write!(f, "导出目标格式不正确：{spec}（应为 json:capture/match.json 的形式）")
             }
             ExportError::Other(text) => write!(f, "{text}"),
         }
