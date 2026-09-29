@@ -6,3 +6,5 @@
 config.local.json
 capture/
 *.pem
+# 日志文件（logkit 文件 sink 的输出）
+*.log
