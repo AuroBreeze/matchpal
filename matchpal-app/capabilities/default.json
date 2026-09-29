@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "matchpal 主窗口默认能力：事件与调用",
-  "windows": ["main"],
+  "description": "matchpal 默认能力：主窗口与悬浮窗的事件、拖动等核心权限",
+  "windows": ["main", "floating"],
   "permissions": ["core:default"]
 }

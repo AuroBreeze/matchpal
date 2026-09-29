@@ -18,8 +18,9 @@
       --hairline: rgba(255, 255, 255, 0.08);
       --hairline-strong: rgba(255, 255, 255, 0.14);
       --shell: rgba(255, 255, 255, 0.04);
-      --glass: rgba(22, 26, 30, 0.78);
-      --glass-filter: blur(28px) saturate(120%);
+      --glass: rgba(22, 26, 30, 0.92);
+      /* 注意：透明窗口里禁用 backdrop-filter —— 没有可采样的背后内容，
+         WebView2 会把 filter 区域合成成黑色（这就是"多余黑底"的来源） */
       --text: #f2f6f3;
       --muted: #97a1ab;
       --faint: #5f6a72;
@@ -54,8 +55,6 @@
       padding: 0 8px 0 16px;
       border-radius: 999px;
       background: var(--glass);
-      -webkit-backdrop-filter: var(--glass-filter);
-      backdrop-filter: var(--glass-filter);
       border: 1px solid var(--hairline);
       box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.07);
       cursor: pointer;
@@ -115,8 +114,6 @@
       height: 100%;
       border-radius: 50%;
       background: var(--glass);
-      -webkit-backdrop-filter: var(--glass-filter);
-      backdrop-filter: var(--glass-filter);
       border: 1px solid var(--hairline);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07);
       cursor: pointer;
