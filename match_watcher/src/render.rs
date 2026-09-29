@@ -655,4 +655,29 @@ mod tests {
         assert!(text.contains("昵称"));
         // 一行数据都没有，但表头必须在（调用方据此判断"还没数据"）
     }
+
+    // ---------------------------------------------------------- 真实形状的完整样本
+    //
+    // src/testdata/stats_response.json 是一份 10 人齐全的战绩接口响应
+    // （steamId / 昵称已随机化，其余字段原样保留）。--replay 也能直接吃这个文件。
+
+    #[test]
+    fn fixture_response_parses_and_renders() {
+        let value: serde_json::Value = serde_json::from_str(include_str!("testdata/stats_response.json"))
+            .expect("样本应是合法 JSON");
+        assert!(crate::model::StatsReport::looks_like_response(&value));
+
+        let report = crate::model::StatsReport::from_value(&value);
+        assert_eq!(report.len(), 10, "CT 5 + T 5");
+        assert_eq!(report.ct.len(), 5);
+        assert_eq!(report.t.len(), 5);
+        assert_eq!(report.map().as_deref(), Some("de_dust2"));
+
+        let info = sample();
+        let table = render_report(Some(&info), &report, 10, 10);
+        assert!(table.contains("测试玩家01"), "第一行昵称应出现在表格里");
+        assert!(table.contains("测试玩家10"), "最后一行昵称应出现在表格里");
+        assert!(table.contains("名单人数：CT 5 / T 5（共 10）"));
+        assert!(table.contains("队伍汇总"), "两侧的队伍汇总都应渲染");
+    }
 }
