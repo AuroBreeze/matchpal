@@ -6,7 +6,7 @@ edition = "2024"
 
 [workspace]
 resolver = "2"
-members = ["fetch_token"]
+members = ["fetch_token", "logkit"]
 
 # 注意：profile 必须写在 workspace 根，写在成员 crate 里会被忽略
 [profile.release]

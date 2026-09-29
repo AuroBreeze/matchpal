@@ -1,0 +1,11 @@
+[package]
+name = "logkit"
+version = "0.1.0"
+edition = "2024"
+description = "Drop-in leveled logger: timestamps, colours, file sink, no setup required"
+
+[dependencies]
+# The only dependency. Needed for correct *local* wall-clock time and
+# millisecond formatting; everything else is std. Both features are already
+# in the workspace lock file.
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
