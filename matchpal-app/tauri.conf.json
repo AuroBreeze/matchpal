@@ -15,6 +15,20 @@
         "height": 760,
         "minWidth": 820,
         "minHeight": 560
+      },
+      {
+        "label": "floating",
+        "url": "floating.html",
+        "title": "matchpal 悬浮窗",
+        "width": 272,
+        "height": 74,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false
       }
     ],
     "security": {

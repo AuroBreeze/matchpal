@@ -123,6 +123,11 @@
       color: var(--accent);
     }
     button.primary:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.24); border-color: rgba(var(--accent-rgb), 0.55); }
+    button.on {
+      background: rgba(var(--accent-rgb), 0.16);
+      border-color: rgba(var(--accent-rgb), 0.38);
+      color: var(--accent);
+    }
 
     /* ---------- 会话状态条 ---------- */
     #session-bar {
@@ -309,6 +314,7 @@
     </span>
     <button id="start" class="primary">开始监听</button>
     <button id="stop" disabled>停止</button>
+    <button id="floating" title="显示 / 隐藏置顶悬浮窗">悬浮窗</button>
   </header>
 
   <div id="session-bar">
@@ -492,6 +498,20 @@
         await invoke("stop_watch");
         setStatus("正在停止…", true);
       } catch (err) {
+        appendLog("warn", String(err));
+      }
+    });
+
+    // 悬浮窗开关：显示置顶小窗，再点一次收回来
+    let floatingOn = false;
+    el("floating").addEventListener("click", async () => {
+      try {
+        floatingOn = !floatingOn;
+        await invoke("set_floating_visible", { visible: floatingOn });
+        el("floating").classList.toggle("on", floatingOn);
+      } catch (err) {
+        floatingOn = false;
+        el("floating").classList.remove("on");
         appendLog("warn", String(err));
       }
     });

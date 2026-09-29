@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matchpal 悬浮窗</title>
+  <style>
+    /* 与主窗口同一套 token-monitor 玻璃变量 */
+    :root {
+      color-scheme: dark;
+      --glass-rgb: 48, 52, 56;
+      --overlay-rgb: 255, 255, 255;
+      --line-rgb: 232, 238, 244;
+      --line: rgba(var(--line-rgb), 0.138);
+      --line-strong: rgba(var(--line-rgb), 0.238);
+      --control: rgba(var(--overlay-rgb), 0.049);
+      --glass-alpha: 0.72;
+      --glass: rgba(var(--glass-rgb), var(--glass-alpha));
+      --glass-filter: blur(28px) saturate(115%);
+      --text: #eef5fb;
+      --muted: #a3adbb;
+      --faint: #6d7681;
+      --accent: #b7ead4;
+      --accent-rgb: 183, 234, 212;
+      --ok: #b7ead4;
+      --bad: #f47788;
+      --warn: #f1d973;
+      --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    html, body {
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    /* ---------- 胶囊条视图 ---------- */
+    #pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 100%;
+      padding: 0 10px 0 14px;
+      border-radius: 17px;
+      background: var(--glass);
+      -webkit-backdrop-filter: var(--glass-filter);
+      backdrop-filter: var(--glass-filter);
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(var(--overlay-rgb), 0.06);
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    #pill:hover { border-color: var(--line-strong); }
+    .dot {
+      flex: 0 0 auto;
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--faint);
+      transition: background 0.25s ease, box-shadow 0.25s ease;
+    }
+    .dot.live { background: var(--ok); box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6); animation: breathe 2s ease-in-out infinite; }
+    .dot.bad { background: var(--bad); box-shadow: 0 0 8px rgba(244, 119, 136, 0.5); }
+    .dot.warn { background: var(--warn); }
+    @keyframes breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+    .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    #state {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .roster { display: flex; gap: 3px; align-items: center; }
+    .roster i {
+      width: 9px; height: 3px;
+      border-radius: 2px;
+      background: rgba(var(--overlay-rgb), 0.1);
+      transition: background 0.3s ease;
+    }
+    .roster i.on { background: var(--accent); }
+    .roster .count { font-family: var(--mono); font-size: 9.5px; color: var(--muted); margin-left: 5px; }
+
+    .btns { flex: 0 0 auto; display: flex; gap: 4px; }
+    .icon-btn {
+      width: 24px; height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .icon-btn:hover { background: rgba(var(--overlay-rgb), 0.09); color: var(--text); }
+    .icon-btn:active { transform: scale(0.94); }
+
+    /* ---------- 小圆钮视图 ---------- */
+    #dot-view {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--glass);
+      -webkit-backdrop-filter: var(--glass-filter);
+      backdrop-filter: var(--glass-filter);
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+      transition: border-color 0.2s ease;
+    }
+    #dot-view:hover { border-color: var(--line-strong); }
+    #dot-view .dot { width: 10px; height: 10px; }
+    #dot-view .mini {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--muted);
+    }
+    body.collapsed #pill { display: none; }
+    body.collapsed #dot-view { display: flex; }
+  </style>
+</head>
+<body>
+  <div id="pill" data-tauri-drag-region>
+    <span class="dot" id="pill-dot" data-tauri-drag-region></span>
+    <div class="info" data-tauri-drag-region>
+      <span id="state">待机</span>
+      <div class="roster" id="roster" data-tauri-drag-region></div>
+    </div>
+    <div class="btns">
+      <button class="icon-btn" id="collapse" title="收成小圆钮">–</button>
+      <button class="icon-btn" id="hide" title="关闭悬浮窗">×</button>
+    </div>
+  </div>
+
+  <div id="dot-view" data-tauri-drag-region title="点击展开">
+    <span class="dot" id="dot-dot"></span>
+    <span class="mini" id="mini-count"></span>
+  </div>
+
+  <script>
+    const { invoke } = window.__TAURI__.core;
+    const { listen } = window.__TAURI__.event;
+
+    const el = (id) => document.getElementById(id);
+    let full = 0;
+    let loaded = 0;
+
+    function setDot(mode) {
+      for (const id of ["pill-dot", "dot-dot"]) {
+        el(id).className = `dot ${mode}`;
+      }
+    }
+
+    function setState(text, mode) {
+      el("state").textContent = text;
+      el("mini-count").textContent = text === "待机" ? "" : text.slice(0, 2);
+      setDot(mode || "");
+    }
+
+    function renderRoster() {
+      const box = el("roster");
+      box.innerHTML = "";
+      if (!full || full > 16) return;
+      for (let i = 0; i < full; i++) {
+        const seg = document.createElement("i");
+        if (i < loaded) seg.className = "on";
+        box.appendChild(seg);
+      }
+      const count = document.createElement("span");
+      count.className = "count";
+      count.textContent = `${loaded}/${full}`;
+      box.appendChild(count);
+      el("mini-count").textContent = `${loaded}/${full}`;
+    }
+
+    // 同一套事件流：主窗口与悬浮窗消费同一份数据
+    listen("watcher", (e) => {
+      const ev = e.payload;
+      switch (ev.type) {
+        case "Account":
+          setState("监听启动", "live");
+          break;
+        case "Connected":
+          full = ev.data.full;
+          loaded = 0;
+          setState("监听中", "live");
+          renderRoster();
+          break;
+        case "Progress":
+          full = ev.data.full;
+          loaded = ev.data.loaded;
+          setState("等队友", "live");
+          renderRoster();
+          break;
+        case "Resubscribed":
+          setState("重订中", "warn");
+          break;
+        case "Report":
+          loaded = full;
+          setState("已出表", "live");
+          renderRoster();
+          break;
+        case "Notice":
+          if (ev.data.level === "error") setState("出错了", "bad");
+          break;
+        case "Finished":
+          setState("待机", "");
+          loaded = 0;
+          renderRoster();
+          break;
+      }
+    });
+
+    // 收起 / 展开视图切换（窗口尺寸由 Rust 侧同步调整）
+    listen("floating-view", (e) => {
+      document.body.classList.toggle("collapsed", e.payload === true);
+    });
+
+    // 悬浮窗打开时若没有新事件，先亮出 token 健康度
+    invoke("token_status")
+      .then((s) => {
+        if (!s.config_found || !s.has_token) setDot("bad");
+      })
+      .catch(() => {});
+
+    el("collapse").addEventListener("click", (e) => {
+      e.stopPropagation();
+      invoke("float_set_collapsed", { collapsed: true }).catch(() => {});
+    });
+    el("hide").addEventListener("click", (e) => {
+      e.stopPropagation();
+      invoke("set_floating_visible", { visible: false }).catch(() => {});
+    });
+    // 点胶囊回主窗口；小圆钮点一下展开回胶囊
+    el("pill").addEventListener("dblclick", () => invoke("open_main").catch(() => {}));
+    el("dot-view").addEventListener("click", () =>
+      invoke("float_set_collapsed", { collapsed: false }).catch(() => {})
+    );
+
+    setState("待机");
+  </script>
+</body>
+</html>

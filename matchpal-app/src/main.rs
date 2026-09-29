@@ -14,17 +14,23 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, LogicalSize, Manager, State};
 
 use match_watcher::config::{self, Credentials};
 use match_watcher::export::Exporters;
-use match_watcher::session::{self, SessionOptions};
+use match_watcher::session::{self, SessionOptions, WatcherEvent};
+
+/// 悬浮窗的两种形态：展开的胶囊条 / 收缩的小圆钮
+const FLOATING_PILL: (f64, f64) = (272.0, 74.0);
+const FLOATING_DOT: (f64, f64) = (56.0, 56.0);
 
 /// 共享给监听线程的运行状态
 #[derive(Default)]
 struct AppState {
     /// 当前会话的停止信号；None = 没有会话在跑
     stop: Option<Arc<AtomicBool>>,
+    /// 最近一次事件：悬浮窗中途打开时补发，让它立刻跟上进度
+    last_event: Option<WatcherEvent>,
 }
 
 /// 前端可见的 token 状态
@@ -134,10 +140,14 @@ fn start_watch(
             stop: Some(stop),
         };
         let _ = session::run_session(&credentials, 2, opts, &mut |event| {
+            if let Ok(mut st) = shared.lock() {
+                st.last_event = Some(event.clone());
+            }
             let _ = app.emit("watcher", &event);
         });
         if let Ok(mut st) = shared.lock() {
             st.stop = None;
+            st.last_event = None;
         }
     });
     Ok(())
@@ -155,10 +165,57 @@ fn stop_watch(state: State<'_, Arc<Mutex<AppState>>>) -> Result<(), String> {
     }
 }
 
+/// 显示 / 隐藏悬浮窗。显示时补发最近一次事件，让小窗立刻跟上进度。
+#[tauri::command]
+fn set_floating_visible(app: AppHandle, visible: bool) -> Result<(), String> {
+    let win = app
+        .get_webview_window("floating")
+        .ok_or_else(|| "悬浮窗不存在".to_string())?;
+    if visible {
+        win.show().map_err(|err| err.to_string())?;
+        win.set_focus().map_err(|err| err.to_string())?;
+    } else {
+        win.hide().map_err(|err| err.to_string())?;
+    }
+    Ok(())
+}
+
+/// 悬浮窗在胶囊条与小圆钮之间切换：改窗口尺寸，并通知页面换视图。
+#[tauri::command]
+fn float_set_collapsed(app: AppHandle, collapsed: bool) -> Result<(), String> {
+    let win = app
+        .get_webview_window("floating")
+        .ok_or_else(|| "悬浮窗不存在".to_string())?;
+    let (w, h) = if collapsed { FLOATING_DOT } else { FLOATING_PILL };
+    win.set_size(LogicalSize::new(w, h)).map_err(|err| err.to_string())?;
+    app.emit_to("floating", "floating-view", collapsed)
+        .map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+/// 点击悬浮窗回到主窗口
+#[tauri::command]
+fn open_main(app: AppHandle) -> Result<(), String> {
+    let win = app
+        .get_webview_window("main")
+        .ok_or_else(|| "主窗口不存在".to_string())?;
+    win.show().map_err(|err| err.to_string())?;
+    win.unminimize().map_err(|err| err.to_string())?;
+    win.set_focus().map_err(|err| err.to_string())?;
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(Arc::new(Mutex::new(AppState::default())))
-        .invoke_handler(tauri::generate_handler![token_status, start_watch, stop_watch])
+        .invoke_handler(tauri::generate_handler![
+            token_status,
+            start_watch,
+            stop_watch,
+            set_floating_visible,
+            float_set_collapsed,
+            open_main
+        ])
         .run(tauri::generate_context!())
         .expect("matchpal 桌面端启动失败");
 }
