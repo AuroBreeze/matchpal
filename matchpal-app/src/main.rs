@@ -18,6 +18,7 @@ use tauri::{AppHandle, Emitter, LogicalSize, Manager, State};
 
 use match_watcher::config::{self, Credentials};
 use match_watcher::export::Exporters;
+use match_watcher::model::{MatchInfo, StatsReport};
 use match_watcher::session::{self, SessionOptions, WatcherEvent};
 
 /// 悬浮窗的三种形态：胶囊条（等待）/ 小圆钮（收缩）/ 数据面板（出表）
@@ -226,6 +227,26 @@ fn open_main(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 一键演示：把仓库自带的完整测试样本（10 人战绩响应）灌进与生产
+/// 完全相同的渲染链路（emit_final → Report 事件），主窗口与悬浮窗
+/// 同时收到一份真实形状的对局数据，便于离线检查 UI 与链路。
+#[tauri::command]
+fn run_demo(app: AppHandle) -> Result<(), String> {
+    const SAMPLE: &str = include_str!("../../match_watcher/src/testdata/stats_response.json");
+    let value: serde_json::Value =
+        serde_json::from_str(SAMPLE).map_err(|err| format!("样本不是合法 JSON：{err}"))?;
+    let report = StatsReport::from_value(&value);
+    if report.is_empty() {
+        return Err("样本解析结果为空".into());
+    }
+    let info = MatchInfo::new(serde_json::json!({ "map": report.map() }));
+    let mut exporters = Exporters::new();
+    session::emit_final(&info, &report, report.len(), report.len(), &mut exporters, &mut |event| {
+        let _ = app.emit("watcher", &event);
+    });
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .manage(Arc::new(Mutex::new(AppState::default())))
@@ -233,6 +254,7 @@ fn main() {
             token_status,
             start_watch,
             stop_watch,
+            run_demo,
             set_floating_visible,
             float_set_view,
             open_main

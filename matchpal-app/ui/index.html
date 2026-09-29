@@ -178,9 +178,99 @@
     #table-wrap {
       flex: 1;
       overflow: auto;
-      padding: 22px 26px;
+      padding: 20px 26px;
       display: flex;
+      flex-direction: column;
+      align-items: center;
     }
+    #report-stack {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 1020px;
+      margin: auto;
+    }
+    #report-stack.show { display: flex; }
+
+    /* ---------- 仪表盘：token-monitor 同款指标卡 ---------- */
+    #dashboard {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      width: 100%;
+      margin-bottom: 16px;
+    }
+    .tile {
+      background: var(--glass);
+      -webkit-backdrop-filter: var(--glass-filter);
+      backdrop-filter: var(--glass-filter);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 15px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(var(--overlay-rgb), 0.05);
+      animation: rise 0.35s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+    }
+    .tile:nth-child(2) { animation-delay: 0.04s; }
+    .tile:nth-child(3) { animation-delay: 0.08s; }
+    .tile:nth-child(4) { animation-delay: 0.12s; }
+    .tile:nth-child(5) { animation-delay: 0.16s; }
+    .tile .label {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      letter-spacing: 0.14em;
+      color: var(--faint);
+      margin-bottom: 7px;
+    }
+    .tile .value {
+      font-family: var(--mono);
+      font-size: 21px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .tile .value .unit { font-size: 11px; font-weight: 400; color: var(--faint); margin-left: 3px; }
+    .tile .sub { font-size: 11px; color: var(--dim, var(--muted)); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tile .sub b { color: var(--accent); font-weight: 600; }
+    .tile.good .value { color: var(--accent); }
+    .tile.warn .value { color: var(--warn); }
+
+    /* ---------- 原始输出 ---------- */
+    details.raw { width: 100%; margin-top: 12px; }
+    details.raw summary {
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.1em;
+      color: var(--faint);
+      cursor: pointer;
+      padding: 4px 0;
+      transition: color 0.2s ease;
+    }
+    details.raw summary:hover { color: var(--muted); }
+    details.raw summary::-webkit-details-marker { display: none; }
+    details.raw summary .chev { font-size: 9px; transition: transform 0.2s ease; }
+    details.raw[open] summary .chev { transform: rotate(90deg); }
+    details.raw pre {
+      margin-top: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.55;
+      color: var(--muted);
+      background: rgba(var(--sunken-rgb, 4, 8, 13), 0.55);
+      background: rgba(4, 8, 13, 0.55);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 15px;
+      overflow: auto;
+      max-height: 240px;
+      user-select: text;
+    }
+
     #table-card {
       display: none;
       flex-direction: column;
@@ -276,6 +366,7 @@
 
     #table-card .card-head .spacer { flex: 1; }
     table#stats { user-select: text; }
+    #table-card { align-self: center; }
 
     /* ---------- 空状态 ---------- */
     #empty {
@@ -374,6 +465,7 @@
     </span>
     <button id="start" class="primary">开始监听</button>
     <button id="stop" disabled>停止</button>
+    <button id="demo" title="灌入仓库自带的 10 人测试样本，走与生产相同的渲染链路">演示样本</button>
     <button id="floating" title="显示 / 隐藏置顶悬浮窗">悬浮窗</button>
   </header>
 
@@ -391,31 +483,38 @@
   <main>
     <div id="error-banner"></div>
     <div id="table-wrap">
-      <div id="table-card">
-        <div class="card-head">
-          MATCH SNAPSHOT
-          <span class="spacer"></span>
-          <span class="meta-chip" id="map-chip" style="display:none"></span>
-          <span class="meta-chip" id="count-chip" style="display:none"></span>
+      <div id="report-stack">
+        <div id="dashboard"></div>
+        <div id="table-card">
+          <div class="card-head">
+            MATCH SNAPSHOT
+            <span class="spacer"></span>
+            <span class="meta-chip" id="map-chip" style="display:none"></span>
+            <span class="meta-chip" id="count-chip" style="display:none"></span>
+          </div>
+          <div style="overflow-x: auto; padding: 6px 10px 10px;">
+            <table id="stats">
+              <thead>
+                <tr>
+                  <th>阵营</th>
+                  <th class="player">玩家</th>
+                  <th>ratingPro</th>
+                  <th>K/D</th>
+                  <th>ADR</th>
+                  <th>WE</th>
+                  <th>爆头率</th>
+                  <th>地图胜率</th>
+                  <th>PP分</th>
+                </tr>
+              </thead>
+              <tbody id="stats-body"></tbody>
+            </table>
+          </div>
         </div>
-        <div style="overflow-x: auto; padding: 6px 10px 10px;">
-          <table id="stats">
-            <thead>
-              <tr>
-                <th>阵营</th>
-                <th class="player">玩家</th>
-                <th>ratingPro</th>
-                <th>K/D</th>
-                <th>ADR</th>
-                <th>WE</th>
-                <th>爆头率</th>
-                <th>地图胜率</th>
-                <th>PP分</th>
-              </tr>
-            </thead>
-            <tbody id="stats-body"></tbody>
-          </table>
-        </div>
+        <details class="raw">
+          <summary><span class="chev">▶</span> CLI 原始输出</summary>
+          <pre id="raw-pre"></pre>
+        </details>
       </div>
       <div id="empty">
         <div class="glyph">[ && ]</div>
@@ -485,6 +584,8 @@
           body.appendChild(tr);
         }
       }
+      renderDashboard(data);
+      el("report-stack").classList.add("show");
       el("table-card").classList.add("show");
       el("empty").style.display = "none";
       // 重新触发入场动画
@@ -492,6 +593,62 @@
       card.style.animation = "none";
       void card.offsetWidth;
       card.style.animation = "";
+    }
+
+    /** 仪表盘指标卡：与 token-monitor 的数据面板同风格 */
+    function renderDashboard(data) {
+      const all = [...data.ct, ...data.t];
+      const avg = (rows, key) => {
+        const vals = rows.map((r) => r[key]).filter((v) => v != null);
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      };
+      const ctRating = avg(data.ct, "rating_pro");
+      const tRating = avg(data.t, "rating_pro");
+      const best = all.reduce(
+        (top, r) => (r.rating_pro != null && (!top || r.rating_pro > top.rating_pro) ? r : top),
+        null
+      );
+      const avgScore = avg(all, "pvp_score");
+      const diff = ctRating != null && tRating != null ? ctRating - tRating : null;
+
+      const tiles = [
+        {
+          label: "CT 平均评分",
+          value: ctRating != null ? ctRating.toFixed(2) : "—",
+          cls: ctRating != null && tRating != null && ctRating >= tRating ? "good" : "",
+        },
+        {
+          label: "T 平均评分",
+          value: tRating != null ? tRating.toFixed(2) : "—",
+          cls: ctRating != null && tRating != null && tRating > ctRating ? "good" : "",
+        },
+        {
+          label: "CT − T",
+          value: diff != null ? (diff >= 0 ? "+" : "") + diff.toFixed(2) : "—",
+          cls: diff != null && Math.abs(diff) >= 0.15 ? "good" : "",
+        },
+        {
+          label: "全场最高评分",
+          value: best ? best.rating_pro.toFixed(2) : "—",
+          sub: best && best.nickname ? `<b>${escapeHtml(best.nickname)}</b>` : "",
+          cls: "good",
+        },
+        {
+          label: "平均 PP 分",
+          value: avgScore != null ? Math.round(avgScore) : "—",
+          sub: `${all.length} 名玩家`,
+        },
+      ];
+      el("dashboard").innerHTML = tiles
+        .map(
+          (t) => `
+        <div class="tile ${t.cls}">
+          <div class="label">${t.label}</div>
+          <div class="value">${t.value}</div>
+          ${t.sub ? `<div class="sub">${t.sub}</div>` : ""}
+        </div>`
+        )
+        .join("");
     }
 
     function escapeHtml(text) {
@@ -549,6 +706,7 @@
 
     /** 兜底：拿不到结构化数据时退回 ASCII 文本 */
     function renderTable(text) {
+      el("report-stack").classList.add("show");
       el("table-card").classList.add("show");
       el("empty").style.display = "none";
       const body = el("stats-body");
@@ -598,6 +756,7 @@
         case "Report":
           if (ev.data && ev.data.ct !== undefined) renderReport(ev.data);
           else renderTable("（本帧没有结构化数据）");
+          el("raw-pre").textContent = (ev.data && ev.data.text) || "";
           setStatus("已出表");
           showRoster(0, 0);
           el("pulse").classList.remove("on");
@@ -644,6 +803,15 @@
         floatingOn = false;
         el("floating").classList.remove("on");
         appendLog("warn", String(err));
+      }
+    });
+
+    // 演示样本：仓库自带测试用例走生产渲染链路，主窗口与悬浮窗同步显示
+    el("demo").addEventListener("click", async () => {
+      try {
+        await invoke("run_demo");
+      } catch (err) {
+        showError(String(err));
       }
     });
 
