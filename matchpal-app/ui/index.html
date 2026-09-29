@@ -6,132 +6,334 @@
   <title>matchpal</title>
   <style>
     :root {
-      --bg: #101418;
-      --panel: #171d24;
-      --border: #26303a;
-      --text: #d7dee6;
-      --dim: #7d8b99;
-      --accent: #4da3ff;
-      --ok: #4ade80;
-      --bad: #f87171;
-      --warn: #fbbf24;
+      --bg: #0e1116;
+      --panel: #141a21;
+      --panel-2: #171e26;
+      --elevated: #1a222c;
+      --border: rgba(255, 255, 255, 0.07);
+      --border-strong: rgba(255, 255, 255, 0.12);
+      --text: #dfe6ee;
+      --dim: #8b98a5;
+      --faint: #5c6875;
+      --accent: #6ba3cf;
+      --accent-deep: #33546f;
+      --ok: #6fc48f;
+      --bad: #e07a6a;
+      --warn: #d9a441;
+      --shadow: 0 12px 32px rgba(3, 6, 10, 0.55);
+      --mono: "Cascadia Mono", "Cascadia Code", Consolas, monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
     body {
-      background: var(--bg);
+      background:
+        radial-gradient(1200px 500px at 75% -10%, rgba(107, 163, 207, 0.055), transparent 60%),
+        radial-gradient(900px 420px at 8% 110%, rgba(111, 196, 143, 0.03), transparent 55%),
+        var(--bg);
       color: var(--text);
-      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+      font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
       font-size: 14px;
-      height: 100vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      user-select: none;
     }
+    /* 细颗粒噪点，打破数字扁平感 */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* ---------- 顶栏 ---------- */
     header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px 16px;
+      gap: 14px;
+      padding: 14px 20px;
       border-bottom: 1px solid var(--border);
-      background: var(--panel);
+      background: rgba(20, 26, 33, 0.72);
     }
-    header h1 { font-size: 16px; font-weight: 600; margin-right: 8px; }
+    .brand { display: flex; align-items: baseline; gap: 9px; }
+    .brand .mark {
+      width: 9px; height: 9px;
+      border-radius: 3px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(107, 163, 207, 0.14);
+      transform: translateY(-1px);
+    }
+    .brand h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
+    .brand .tag { font-size: 11.5px; color: var(--faint); letter-spacing: 0.06em; }
+
     .chip {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 3px 10px;
-      border-radius: 999px;
+      gap: 8px;
+      padding: 5px 12px;
+      border-radius: 7px;
       font-size: 12px;
-      color: var(--dim);
-      background: #1d2530;
+      background: var(--panel-2);
       border: 1px solid var(--border);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      transition: border-color 0.2s ease, background 0.2s ease;
     }
-    .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
-    .chip.ok .dot { background: var(--ok); }
-    .chip.bad .dot { background: var(--bad); }
-    .chip .detail { color: var(--dim); }
+    .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); transition: background 0.25s ease; }
+    .chip.ok .dot { background: var(--ok); box-shadow: 0 0 6px rgba(111, 196, 143, 0.5); }
+    .chip.bad .dot { background: var(--bad); box-shadow: 0 0 6px rgba(224, 122, 106, 0.45); }
+    .chip .label { color: var(--faint); font-size: 10.5px; letter-spacing: 0.09em; }
+    .chip .value { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+    .chip.ok .value { color: var(--text); }
+
     .spacer { flex: 1; }
+
     button {
-      padding: 7px 18px;
-      border-radius: 6px;
+      padding: 8px 20px;
+      border-radius: 8px;
       border: 1px solid var(--border);
-      background: #22303f;
+      background: var(--elevated);
       color: var(--text);
       font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
       cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease, opacity 0.2s ease;
     }
-    button:hover:not(:disabled) { background: #2b3d50; }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-    button.primary { background: #1c4e8a; border-color: #2a6ab8; }
-    button.primary:hover:not(:disabled) { background: #2560a5; }
-    #status-line {
-      padding: 8px 16px;
+    button:hover:not(:disabled) { background: #212b37; border-color: var(--border-strong); }
+    button:active:not(:disabled) { transform: scale(0.97); }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.primary {
+      background: linear-gradient(180deg, #3c6c96, #33546f);
+      border-color: rgba(107, 163, 207, 0.35);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 14px rgba(51, 84, 111, 0.35);
+    }
+    button.primary:hover:not(:disabled) { background: linear-gradient(180deg, #457aa8, #3a6180); }
+
+    /* ---------- 会话状态条 ---------- */
+    #session-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 11px 20px;
+      border-bottom: 1px solid var(--border);
+      min-height: 42px;
       font-size: 13px;
       color: var(--dim);
-      border-bottom: 1px solid var(--border);
-      min-height: 34px;
+    }
+    #status { color: var(--text); font-weight: 500; transition: color 0.2s ease; }
+    #status.waiting { color: var(--warn); }
+    .roster { display: flex; gap: 5px; align-items: center; }
+    .roster i {
+      width: 14px; height: 5px;
+      border-radius: 3px;
+      background: #232d39;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    .roster i.on { background: var(--accent); box-shadow: 0 0 5px rgba(107, 163, 207, 0.45); }
+    .roster .count { font-family: var(--mono); font-size: 11.5px; color: var(--dim); margin-left: 6px; }
+    .pulse {
+      display: none;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--warn);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    .pulse.on { display: block; }
+    @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+    /* ---------- 主区 ---------- */
+    main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #table-wrap {
+      flex: 1;
+      overflow: auto;
+      padding: 22px 26px;
+      display: flex;
+    }
+    #table-card {
+      display: none;
+      flex-direction: column;
+      margin: auto;
+      width: fit-content;
+      max-width: 100%;
+      background: linear-gradient(180deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      animation: rise 0.35s cubic-bezier(0.2, 0.7, 0.3, 1);
+    }
+    #table-card.show { display: flex; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    #table-card .card-head {
       display: flex;
       align-items: center;
       gap: 8px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11.5px;
+      letter-spacing: 0.1em;
+      color: var(--faint);
     }
-    #status-line .progress { color: var(--accent); font-weight: 600; }
-    main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    #table-wrap { flex: 1; overflow: auto; padding: 16px; }
+    #table-card .card-head::before {
+      content: "";
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 6px rgba(111, 196, 143, 0.5);
+    }
     #table {
-      font-family: Consolas, "Cascadia Mono", monospace;
+      font-family: var(--mono);
       font-size: 13px;
-      line-height: 1.45;
+      line-height: 1.55;
       white-space: pre;
+      padding: 16px 20px 18px;
+      overflow-x: auto;
+      user-select: text;
+    }
+    #table .rule { color: #33404d; }
+    #table .meta { color: var(--dim); }
+    #table .side { color: var(--accent); font-weight: 600; }
+
+    /* ---------- 空状态 ---------- */
+    #empty {
+      margin: auto;
+      text-align: center;
+      max-width: 420px;
+      padding-bottom: 4vh;
+    }
+    #empty .glyph {
+      font-family: var(--mono);
+      font-size: 40px;
+      color: #2a3542;
+      letter-spacing: 0.1em;
+      margin-bottom: 18px;
+    }
+    #empty h2 {
+      font-size: 17px;
+      font-weight: 600;
       color: var(--text);
+      margin-bottom: 8px;
+      letter-spacing: 0.01em;
     }
-    #table:empty::after {
-      content: "还没有对局数据 —— 匹配成立后点击「开始监听」，人满即出表。";
+    #empty p { font-size: 13px; color: var(--dim); line-height: 1.75; text-wrap: balance; }
+    #empty .steps {
+      margin-top: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      text-align: left;
+    }
+    #empty .step {
+      display: flex;
+      gap: 11px;
+      align-items: baseline;
+      font-size: 12.5px;
       color: var(--dim);
-      font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-      font-size: 13px;
+      padding: 9px 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(23, 30, 38, 0.55);
     }
-    #log-wrap {
-      border-top: 1px solid var(--border);
-      background: var(--panel);
-      max-height: 160px;
-      overflow: auto;
-      padding: 8px 16px;
-      font-size: 12px;
-      font-family: Consolas, monospace;
-      color: var(--dim);
-    }
-    #log-wrap div { padding: 2px 0; white-space: pre-wrap; }
-    #log-wrap .warn { color: var(--warn); }
-    #log-wrap .error { color: var(--bad); }
+    #empty .step b { font-family: var(--mono); font-size: 11px; color: var(--accent); font-weight: 600; }
+
+    /* ---------- 错误条 ---------- */
     #error-banner {
       display: none;
-      margin: 10px 16px 0;
-      padding: 10px 14px;
-      border-radius: 6px;
-      border: 1px solid #7f2d2d;
-      background: #3a1d1d;
-      color: #f5b5b5;
+      margin: 12px 26px 0;
+      padding: 11px 15px;
+      border-radius: 9px;
+      border: 1px solid rgba(224, 122, 106, 0.3);
+      background: rgba(224, 122, 106, 0.08);
+      color: #edb4aa;
       font-size: 13px;
+      line-height: 1.5;
     }
+
+    /* ---------- 日志抽屉 ---------- */
+    #log-drawer {
+      border-top: 1px solid var(--border);
+      background: rgba(20, 26, 33, 0.85);
+      flex: 0 0 auto;
+    }
+    #log-drawer summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      font-size: 12px;
+      color: var(--faint);
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: color 0.2s ease;
+    }
+    #log-drawer summary:hover { color: var(--dim); }
+    #log-drawer summary::-webkit-details-marker { display: none; }
+    #log-drawer summary .chev { transition: transform 0.2s ease; font-size: 10px; }
+    #log-drawer[open] summary .chev { transform: rotate(90deg); }
+    #log-count {
+      font-family: var(--mono);
+      background: #232d39;
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 10.5px;
+    }
+    #log-wrap { max-height: 150px; overflow: auto; padding: 2px 20px 10px; font-family: var(--mono); font-size: 11.5px; }
+    #log-wrap div { padding: 2.5px 0; white-space: pre-wrap; color: var(--dim); }
+    #log-wrap .warn { color: var(--warn); }
+    #log-wrap .error { color: var(--bad); }
+    #log-wrap .empty-log { color: var(--faint); }
   </style>
 </head>
 <body>
   <header>
-    <h1>matchpal</h1>
-    <span id="token-chip" class="chip"><span class="dot"></span><span id="token-text">读取配置中…</span></span>
-    <span id="config-path" class="chip detail"></span>
+    <div class="brand">
+      <span class="mark"></span>
+      <h1>matchpal</h1>
+      <span class="tag">赛前三查</span>
+    </div>
     <span class="spacer"></span>
+    <span id="token-chip" class="chip">
+      <span class="dot"></span>
+      <span class="label">TOKEN</span>
+      <span class="value" id="token-text">读取中</span>
+    </span>
     <button id="start" class="primary">开始监听</button>
     <button id="stop" disabled>停止</button>
   </header>
 
-  <div id="status-line"><span id="status">待机</span></div>
-  <div id="error-banner"></div>
+  <div id="session-bar">
+    <span id="status">待机</span>
+    <span class="pulse" id="pulse"></span>
+    <span class="spacer"></span>
+    <span class="roster" id="roster"></span>
+  </div>
 
   <main>
-    <div id="table-wrap"><pre id="table"></pre></div>
-    <div id="log-wrap"></div>
+    <div id="error-banner"></div>
+    <div id="table-wrap">
+      <div id="table-card">
+        <div class="card-head">MATCH SNAPSHOT</div>
+        <pre id="table"></pre>
+      </div>
+      <div id="empty">
+        <div class="glyph">[ && ]</div>
+        <h2>等一局开始</h2>
+        <p>监听运行时，匹配成立的瞬间就会收到推送；名单满员即出表，通常赶在地图加载完之前。</p>
+        <div class="steps">
+          <div class="step"><b>01</b>确认右上角 token 有效，失效就重跑一次 fetch_token</div>
+          <div class="step"><b>02</b>点击「开始监听」，然后正常去匹配</div>
+          <div class="step"><b>03</b>人满自动出表，打完自动待机</div>
+        </div>
+      </div>
+    </div>
+    <details id="log-drawer">
+      <summary><span class="chev">▶</span> 运行日志 <span id="log-count">0</span></summary>
+      <div id="log-wrap"><div class="empty-log">暂无输出</div></div>
+    </details>
   </main>
 
   <script>
@@ -139,25 +341,35 @@
     const { listen } = window.__TAURI__.event;
 
     const el = (id) => document.getElementById(id);
-    let running = false;
+    const table = el("table");
+    let logCount = 0;
 
     function setRunning(on) {
-      running = on;
       el("start").disabled = on;
       el("stop").disabled = !on;
-      if (!on) setStatus("待机");
+      if (!on) { setStatus("待机"); el("pulse").classList.remove("on"); }
     }
 
-    function setStatus(text, progress) {
-      el("status").textContent = text;
-      const old = document.querySelector("#status-line .progress");
-      if (old) old.remove();
-      if (progress !== undefined) {
-        const p = document.createElement("span");
-        p.className = "progress";
-        p.textContent = progress;
-        el("status-line").appendChild(p);
+    function setStatus(text, waiting) {
+      const s = el("status");
+      s.textContent = text;
+      s.classList.toggle("waiting", !!waiting);
+      el("pulse").classList.toggle("on", !!waiting);
+    }
+
+    function showRoster(full, loaded) {
+      const box = el("roster");
+      box.innerHTML = "";
+      if (!full || full > 16) return;
+      for (let i = 0; i < full; i++) {
+        const seg = document.createElement("i");
+        if (i < loaded) seg.className = "on";
+        box.appendChild(seg);
       }
+      const count = document.createElement("span");
+      count.className = "count";
+      count.textContent = `${loaded}/${full}`;
+      box.appendChild(count);
     }
 
     function showError(message) {
@@ -168,29 +380,55 @@
     }
 
     function appendLog(level, message) {
+      const wrap = el("log-wrap");
+      const placeholder = wrap.querySelector(".empty-log");
+      if (placeholder) placeholder.remove();
       const line = document.createElement("div");
       if (level === "warn" || level === "error") line.className = level;
       line.textContent = `[${level}] ${message}`;
-      const wrap = el("log-wrap");
       wrap.appendChild(line);
       wrap.scrollTop = wrap.scrollHeight;
+      el("log-count").textContent = ++logCount;
+    }
+
+    /** 给表格上色：分隔线弱化，汇总行变暗，阵营标签提亮 */
+    function renderTable(text) {
+      table.innerHTML = "";
+      for (const line of text.split("\n")) {
+        const span = document.createElement("span");
+        if (/^[=\-]+\s*$/.test(line)) {
+          span.className = "rule";
+        } else if (/^(名单人数|CT 队伍汇总|T 队伍汇总)/.test(line.trim())) {
+          span.className = "meta";
+        } else if (/^(CT|T)\s/.test(line)) {
+          span.className = "side";
+        }
+        span.textContent = line + "\n";
+        table.appendChild(span);
+      }
+      el("table-card").classList.add("show");
+      el("empty").style.display = "none";
+      // 重新触发入场动画
+      const card = el("table-card");
+      card.style.animation = "none";
+      void card.offsetWidth;
+      card.style.animation = "";
     }
 
     async function refreshTokenStatus() {
       const s = await invoke("token_status");
       const chip = el("token-chip");
-      el("config-path").textContent = s.config_path;
       if (!s.config_found) {
         chip.className = "chip bad";
-        el("token-text").textContent = "未找到 config.local.json";
+        el("token-text").textContent = "未找到配置";
         return;
       }
       if (s.has_token) {
         chip.className = "chip ok";
-        el("token-text").textContent = `token ${s.masked_token}`;
+        el("token-text").textContent = s.masked_token;
       } else {
         chip.className = "chip bad";
-        el("token-text").textContent = "缺少 token（先运行 fetch_token）";
+        el("token-text").textContent = "未获取 · 先运行 fetch_token";
       }
     }
 
@@ -199,27 +437,29 @@
       const ev = e.payload;
       switch (ev.type) {
         case "Account":
-          setStatus(`账号 ${ev.data.steamid || "（steamid 缺失）"}`);
+          setStatus("账号就绪");
           appendLog("info", `账号 ${ev.data.steamid} · token ${ev.data.masked_token}`);
           break;
         case "Connected":
-          setStatus("已连接 WebSocket", `等待名单 ${ev.data.full} 人`);
+          setStatus("已连接 · 等待匹配推送", true);
+          showRoster(ev.data.full, 0);
           break;
         case "Progress":
-          setStatus("等待中", `名单 ${ev.data.loaded}/${ev.data.full}`);
+          setStatus("有人进来了", true);
+          showRoster(ev.data.full, ev.data.loaded);
           break;
         case "Resubscribed":
-          setStatus(
-            `已等待 ${Math.round(ev.data.waited_secs)} 秒无推送`,
-            `每 ${Math.round(ev.data.interval_secs)} 秒重新订阅`
-          );
+          setStatus(`已等待 ${Math.round(ev.data.waited_secs)} 秒无推送 · 持续重订中`, true);
+          appendLog("info", `重新订阅（每 ${Math.round(ev.data.interval_secs)} 秒一次）`);
           break;
         case "Notice":
           appendLog(ev.data.level, ev.data.message);
           break;
         case "Report":
-          el("table").textContent = ev.data.text;
+          renderTable(ev.data.text);
           setStatus("已出表");
+          showRoster(0, 0);
+          el("pulse").classList.remove("on");
           break;
         case "Finished":
           setRunning(false);
@@ -229,11 +469,13 @@
 
     el("start").addEventListener("click", async () => {
       el("error-banner").style.display = "none";
-      el("log-wrap").innerHTML = "";
+      el("log-wrap").innerHTML = '<div class="empty-log">暂无输出</div>';
+      logCount = 0;
+      el("log-count").textContent = "0";
       try {
         await invoke("start_watch", { args: { full: 10, keep_going: false } });
         setRunning(true);
-        setStatus("连接中…");
+        setStatus("连接中…", true);
       } catch (err) {
         showError(String(err));
       }
@@ -242,7 +484,7 @@
     el("stop").addEventListener("click", async () => {
       try {
         await invoke("stop_watch");
-        setStatus("正在停止…");
+        setStatus("正在停止…", true);
       } catch (err) {
         appendLog("warn", String(err));
       }
