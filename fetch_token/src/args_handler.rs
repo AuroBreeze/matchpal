@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use logkit::Level;
+
 use crate::pause::{self, Pause};
 
 pub struct Args {
@@ -12,7 +14,8 @@ pub struct Args {
     pub timeout: u64,
     pub keep_going: bool,
     pub keep_ca: bool,
-    pub verbose: bool,
+    /// 已由 `--verbose` / `--log-level` 折算好的日志级别
+    pub log_level: Level,
     pub log_all: Option<PathBuf>,
     pub no_elevate: bool,
 }
@@ -31,12 +34,24 @@ fetch access_token
   --keep-going            命中后不退出，继续跑
   --keep-ca               结束后保留根证书（默认卸载）
   --log-all <文件>        把所有经过的请求 URL 记录到该文件
-  --verbose               打印所有经过的请求
+  --log-level <级别>      trace/debug/info/warn/error/off（默认 info）
+  --verbose               等价于 --log-level debug：打印所有经过的请求
   --no-elevate            不自动提权（自己保证管理员权限）
   --pause [秒]            结束前留住窗口：不带值停 10 秒，带值停 N 秒，0 = 一直等到按键
   --no-pause              结束就关窗口，不留（脚本/CI 用）
   --help                  显示本帮助
+
+环境变量 FETCH_TOKEN_LOG 也能设级别；双击运行时没法加参数，用它更顺手。
 ";
+
+/// 默认日志级别：环境变量 `FETCH_TOKEN_LOG` 优先，认不出就用 info。
+/// 双击运行时没法加参数，这是唯一能拿到 debug 日志的路子。
+fn default_level() -> Level {
+    std::env::var("FETCH_TOKEN_LOG")
+        .ok()
+        .and_then(|text| Level::parse(&text))
+        .unwrap_or(Level::Info)
+}
 
 pub fn parse_args() -> Args {
     let argv: Vec<String> = std::env::args().skip(1).collect();
@@ -56,7 +71,7 @@ pub fn parse_args() -> Args {
         timeout: 300,
         keep_going: false,
         keep_ca: false,
-        verbose: false,
+        log_level: default_level(),
         log_all: None,
         no_elevate: false,
     };
@@ -111,8 +126,21 @@ pub fn parse_args() -> Args {
                 index += 1;
             }
             "--verbose" => {
-                args.verbose = true;
+                // 老旗标保留：等价于 --log-level debug
+                args.log_level = Level::Debug;
                 index += 1;
+            }
+            "--log-level" => {
+                let text = value(index);
+                match Level::parse(&text) {
+                    Some(level) => args.log_level = level,
+                    None => {
+                        // 这里用 logkit 的 error 宏：级别还没生效，但 Error 永远打得出来
+                        logkit::error!("无法识别的日志级别：{text}（可选 trace/debug/info/warn/error/off）");
+                        pause::exit_with(2);
+                    }
+                }
+                index += 2;
             }
             "--no-elevate" => {
                 args.no_elevate = true;
@@ -140,7 +168,7 @@ pub fn parse_args() -> Args {
                 pause::exit_with(0);
             }
             other => {
-                eprintln!("未知参数：{other}（用 --help 看用法）");
+                logkit::error!("未知参数：{other}（用 --help 看用法）");
                 pause::exit_with(2);
             }
         }

@@ -459,6 +459,7 @@ dependencies = [
  "chrono",
  "http-body-util",
  "hudsucker",
+ "logkit",
  "serde_json",
  "tokio",
  "winreg",

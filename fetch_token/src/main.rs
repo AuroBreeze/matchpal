@@ -32,6 +32,7 @@ use std::time::Duration;
 use http_body_util::BodyExt;
 use hudsucker::hyper::{HeaderMap, Request, Response};
 use hudsucker::{Body, HttpContext, HttpHandler, Proxy, RequestOrResponse};
+use logkit::{debug, error, info, trace, warn};
 use tokio::sync::mpsc;
 
 use crate::ca::{Guard, creat_user_ca};
@@ -258,7 +259,6 @@ struct TokenHandler {
     /// 空 = 不过滤(`--any-host`) 非空时只收这些域名及其子域
     hosts: Arc<Vec<String>>,
     tx: mpsc::UnboundedSender<Hit>,
-    verbose: bool,
     extras: Arc<Mutex<HashMap<String, String>>>,
     log_all: Option<Arc<Mutex<std::fs::File>>>,
     last_url: Arc<Mutex<String>>,
@@ -300,8 +300,8 @@ impl TokenHandler {
         host_matches(&self.hosts, url)
     }
 
-    /// 字段名命中了、但主机不在白名单：记下来(去重)，verbose 下当场说一声。
-    /// 只记不报的话，不加 --verbose 的用户看到「没抓到」时分不清是白名单太窄还是没流量
+    /// 字段名命中了、但主机不在白名单：记下来(去重)，debug 级别下当场说一声。
+    /// 只记不报的话，没开 debug 的用户看到「没抓到」时分不清是白名单太窄还是没流量
     fn report_ignored(&self, url: &str, fields: &[(String, String)]) {
         let host = host_of(url).unwrap_or_else(|| url.to_string());
         let names: Vec<&str> = fields.iter().map(|(key, _)| key.as_str()).collect();
@@ -311,9 +311,7 @@ impl TokenHandler {
                 seen.push(line.clone());
             }
         }
-        if self.verbose {
-            println!("忽略：{line}（主机不在白名单；用 --hosts 追加或 --any-host 放开）");
-        }
+        debug!("忽略：{line}（主机不在白名单；用 --hosts 追加或 --any-host 放开）");
     }
 
     fn log_line(&self, line: &str) {
@@ -444,9 +442,7 @@ impl HttpHandler for TokenHandler {
             body_text.as_deref().map(|text| (content_type.as_str(), text)),
         );
         let url = hit.url.clone();
-        if self.verbose {
-            println!("经过：{} {}", method, url);
-        }
+        debug!("经过：{} {}", method, url);
         self.log_line(&format!("-> {} {}", method, url));
         if let Ok(mut last) = self.last_url.lock() {
             *last = url;
@@ -481,9 +477,7 @@ impl HttpHandler for TokenHandler {
         }
         let res = Response::from_parts(parts, body);
 
-        if self.verbose {
-            println!("响应：{} {}", res.status(), content_type);
-        }
+        trace!("响应：{} {}", res.status(), content_type);
         let mut fields = self.scan_response(&res);
         // 响应体 JSON 是"签发点"：token 在登录流程里很可能是这一侧下发的
         if let Some(text) = &body_text {
@@ -554,22 +548,30 @@ fn write_config(path: &Path, hit: &Hit, extras: &HashMap<String, String>) -> std
 // ---------------------------------------------------------------- 主流程
 #[tokio::main]
 async fn main() {
+    // 放在解析参数之前：解析期就可能报错（未知参数/未知级别），
+    // 晚设的话那几条会带着模块路径，和后面的输出风格不一致。
+    // 这个工具的每条消息都是自成一句话，模块路径纯属噪声。
+    logkit::set_show_target(false);
+
     let args = args_handler::parse_args();
+
+    // 级别在解析参数时就折算好了（--verbose / --log-level / FETCH_TOKEN_LOG）
+    logkit::set_level(args.log_level);
 
     if !platform::is_admin() && !args.no_elevate {
         if platform::elevate() {
-            println!("已发起提权，请在 UAC 弹窗点“是”——活儿会在新窗口里继续");
+            info!("已发起提权，请在 UAC 弹窗点“是”——活儿会在新窗口里继续");
             // 提权后的新窗口是独立控制台，那边的 exit_with 会自动留窗。
             // 这里也得走闸门：万一用户是从双击的窗口启动的，这个窗口马上要关了。
             pause::exit_with(0);
         }
-        eprintln!("提权被拒绝；请右键“以管理员身份运行”后重试");
+        error!("提权被拒绝；请右键“以管理员身份运行”后重试");
         pause::exit_with(3);
     }
 
     let out_dir = args.out.clone();
     if let Err(err) = std::fs::create_dir_all(&out_dir) {
-        eprintln!("创建工作目录失败：{err}");
+        error!("创建工作目录失败：{err}");
         pause::exit_with(2);
     }
     let cert_path = out_dir.join("fetch-token-ca.pem");
@@ -582,25 +584,26 @@ async fn main() {
     // ---- 装证书
     match ca::install_ca(&cert_path, &args.ca_store) {
         Ok(()) => {
-            println!("根证书已装入 {} 根证书库", args.ca_store);
+            info!("根证书已装入 {} 根证书库", args.ca_store);
             if !args.keep_ca {
                 guard.ca = Some((ca_name.clone(), args.ca_store.clone()));
             }
         }
-        Err(err) => eprintln!("装根证书失败（HTTPS 不会被解密）：{err}"),
+        // 不致命：只是 HTTPS 解不开，继续跑让用户自己决定
+        Err(err) => warn!("装根证书失败（HTTPS 不会被解密）：{err}"),
     }
 
     // ---- 设系统代理
     match proxy::set_system_proxy(args.port) {
         Ok(prev) => {
-            println!(
+            info!(
                 "系统代理已临时指向 127.0.0.1:{}（原值 {}，退出时自动还原）",
                 args.port,
                 if prev.1.is_empty() { "未启用".into() } else { prev.1.clone() }
             );
             guard.proxy_prev = Some(prev);
         }
-        Err(err) => eprintln!("设置系统代理失败（请手动把系统代理指向 127.0.0.1:{}）：{err}", args.port),
+        Err(err) => warn!("设置系统代理失败（请手动把系统代理指向 127.0.0.1:{}）：{err}", args.port),
     }
 
     // ---- 启动代理
@@ -627,7 +630,6 @@ async fn main() {
         names: names.clone(),
         hosts: hosts.clone(),
         tx,
-        verbose: args.verbose,
         extras: extras.clone(),
         log_all: log_file,
         last_url: Arc::new(Mutex::new(String::new())),
@@ -647,22 +649,22 @@ async fn main() {
     {
         Ok(proxy) => proxy,
         Err(err) => {
-            eprintln!("构建代理失败：{err}");
+            error!("构建代理失败：{err}");
             pause::exit_with(2);
         }
     };
 
-    println!("本地代理已监听 http://127.0.0.1:{}", args.port);
-    println!("现在去客户端里操作（登录/点头像即可），命中 {} 就自动收工", args.names.join(", "));
+    info!("本地代理已监听 http://127.0.0.1:{}", args.port);
+    info!("现在去客户端里操作（登录/点头像即可），命中 {} 就自动收工", args.names.join(", "));
     if args.hosts.is_empty() {
-        println!("注意：未限制域名（--any-host），CSRF/资讯流之类的一次性 token 也可能被写入");
+        warn!("注意：未限制域名（--any-host），CSRF/资讯流之类的一次性 token 也可能被写入");
     } else {
-        println!("只接受这些域名的字段：{}", args.hosts.join(", "));
+        info!("只接受这些域名的字段：{}", args.hosts.join(", "));
     }
 
     let server = tokio::spawn(async move {
         if let Err(err) = proxy.start().await {
-            eprintln!("代理运行出错：{err}");
+            error!("代理运行出错：{err}");
         }
     });
 
@@ -674,7 +676,7 @@ async fn main() {
             maybe_hit = rx.recv() => {
                 let Some(hit) = maybe_hit else { break };
                 let extras_map = extras.lock().map(|e| e.clone()).unwrap_or_default();
-                println!(
+                info!(
                     "命中 token！来源：{}（{}）",
                     hit.url,
                     if hit.from_response { "响应侧" } else { "请求侧" }
@@ -685,11 +687,11 @@ async fn main() {
                     } else {
                         value.clone()
                     };
-                    println!("    {key} = {masked}");
+                    info!("    {key} = {masked}");
                 }
                 match write_config(&args.write_config, &hit, &extras_map) {
-                    Ok(()) => println!("已写入：{}", args.write_config.display()),
-                    Err(err) => eprintln!("写配置失败：{err}"),
+                    Ok(()) => info!("已写入：{}", args.write_config.display()),
+                    Err(err) => error!("写配置失败：{err}"),
                 }
                 captured = true;
                 if !args.keep_going {
@@ -697,11 +699,11 @@ async fn main() {
                 }
             }
             _ = tokio::time::sleep_until(deadline) => {
-                println!("达到超时 {}s，未命中", args.timeout);
+                warn!("达到超时 {}s，未命中", args.timeout);
                 break;
             }
             _ = tokio::signal::ctrl_c() => {
-                println!("收到 Ctrl+C");
+                info!("收到 Ctrl+C");
                 break;
             }
         }
@@ -714,13 +716,13 @@ async fn main() {
     if !captured {
         let seen = ignored.lock().map(|list| list.clone()).unwrap_or_default();
         if !seen.is_empty() {
-            eprintln!("以下候选的字段名命中了，但域名不在白名单，已忽略：");
+            warn!("以下候选的字段名命中了，但域名不在白名单，已忽略：");
             for line in &seen {
-                eprintln!("  - {line}");
+                warn!("- {line}");
             }
-            eprintln!("若其中确实有目标接口，用 --hosts <域名> 追加后重跑。");
+            warn!("若其中确实有目标接口，用 --hosts <域名> 追加后重跑。");
         }
-        eprintln!("没抓到 token。排查：1) 客户端是否走系统代理 2) 根证书是否装上 3) 加 --verbose 看请求");
+        error!("没抓到 token。排查：1) 客户端是否走系统代理 2) 根证书是否装上 3) 加 --verbose 看请求");
         pause::exit_with(1);
     }
 

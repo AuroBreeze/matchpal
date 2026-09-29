@@ -6,6 +6,9 @@ description = "获取查看对局数据所需要的token"
 
 
 [dependencies]
+# 分级日志：时间戳 / 级别过滤 / 颜色 / 文件 sink，见 logkit crate
+logkit = { path = "../logkit" }
+
 # 拦截式 HTTP/S 代理。
 # native-tls-client → 上游连接走 schannel（读 **Windows 证书库**）。
 #   本机有 HTTPS 中间人 CA，只有走系统证书库才连得上；用 rustls 默认根证书会报 UnknownIssuer。

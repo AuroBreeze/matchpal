@@ -59,6 +59,8 @@ pub fn exit_with(code: i32) -> ! {
 }
 
 fn wait() {
+    // 这里刻意不走 logkit：倒计时用 `\r` 原地刷新同一行，套上时间戳和级别前缀
+    // 会变成每秒刷出一行，反而看不清。这是交互式 UI，不是日志。
     match setting() {
         Pause::Off => {}
         Pause::UntilKey => {
