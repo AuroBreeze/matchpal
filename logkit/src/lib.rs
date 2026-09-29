@@ -1,46 +1,44 @@
-//! `logkit` — a leveled logger you can drop into any Rust project.
+//! `logkit` —— 一个可以随手丢进任何 Rust 项目的分级日志器。
 //!
-//! Goals, in order: zero setup, cheap when disabled, and never in the way of
-//! your actual output.
+//! 设计目标按优先级排列：零配置、禁用时足够廉价、绝不干扰程序本身的输出。
 //!
-//! # Quick start
+//! # 快速开始
 //!
 //! ```no_run
-//! logkit::init();                       // reads LOG_LEVEL, defaults to info
-//! logkit::info!("listening on port {}", 8080);
-//! logkit::error!("cannot reach {}", "127.0.0.1");
+//! logkit::init();                       // 读取 LOG_LEVEL，默认为 info
+//! logkit::info!("正在监听端口 {}", 8080);
+//! logkit::error!("连不上 {}", "127.0.0.1");
 //! ```
 //!
-//! Output looks like this:
+//! 输出大致长这样：
 //!
 //! ```text
-//! 2026-09-29 21:26:56.123  INFO   [myapp]  listening on port 8080
+//! 2026-09-29 21:26:56.123  INFO   [myapp]  正在监听端口 8080
 //! ```
 //!
-//! # Rules the design follows
+//! # 设计遵循的几条规则
 //!
-//! - **Filtering happens before formatting.** A record below the filter level
-//!   is dropped without allocating, so `trace!` calls can stay in hot paths.
-//! - **Default sink is stderr.** stdout stays clean for pipes and redirects.
-//! - **Logging never panics.** A poisoned lock, a missing file or a broken pipe
-//!   loses a line at most; it never takes the program down.
-//! - **One global logger.** Enough for CLIs and desktop apps. There is no
-//!   per-module configuration and no async queue on purpose.
+//! - **先过滤，后格式化。** 低于过滤级别的日志记录会被直接丢弃，不产生任何内存
+//!   分配，所以 `trace!` 可以放心留在热路径上。
+//! - **默认输出目标是 stderr。** stdout 留给管道和重定向，保持干净。
+//! - **记日志永不 panic。** 锁中毒、文件缺失或者管道断开，最多丢一行日志，
+//!   绝不会把整个程序带崩。
+//! - **只有一个全局日志器。** 对命令行工具和桌面应用来说足够了。这里有意不做
+//!   按模块配置，也不做异步队列。
 //!
-//! # Reusing it from another project
+//! # 在其他项目中复用它
 //!
 //! ```toml
 //! [dependencies]
 //! logkit = { path = "../matchpal/logkit" }
 //! ```
 //!
-//! # Two things worth knowing
+//! # 两点值得留意的地方
 //!
-//! 1. Colour is auto-detected once, on first use: it requires stderr to be a
-//!    terminal, and on Windows it also turns on virtual terminal processing.
-//!    Force it with [`set_color`].
-//! 2. [`Sink::File`] disables colour regardless of [`set_color`], because
-//!    escape codes in a log file are noise.
+//! 1. 颜色只在首次使用时自动检测一次：要求 stderr 是终端，在 Windows 上还会
+//!    额外开启虚拟终端处理。可以用 [`set_color`] 强制指定。
+//! 2. [`Sink::File`] 会无视 [`set_color`] 关闭颜色，因为日志文件里混进转义
+//!    序列纯属噪音。
 
 #![warn(missing_docs)]
 
@@ -56,23 +54,22 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-/// Timestamp format used for every line: local time, millisecond precision.
+/// 每一行日志使用的时间戳格式：本地时间，毫秒精度。
 const TIMESTAMP: &str = "%Y-%m-%d %H:%M:%S%.3f";
 
-/// Filter level, kept out of [`Config`] and read without locking.
+/// 过滤级别，特意放在 [`Config`] 之外，读取时无需加锁。
 ///
-/// The whole point of a filter is to make disabled calls cheap, so it has to
-/// be readable *before* the sink mutex is taken — otherwise every `debug!` in
-/// a hot path pays for a lock plus a syscall's worth of contention.
+/// 过滤器存在的全部意义就是让被禁用的调用足够廉价，所以它必须在拿到 sink 互斥锁
+/// *之前*就可读——否则热路径上每一次 `debug!` 都要付出一把锁外加一次系统调用级
+/// 别的锁竞争。
 static FILTER: AtomicU8 = AtomicU8::new(Level::Info as u8);
 
-/// Mutable logger state. Kept behind one mutex: log lines are short and the
-/// lock is only held for the duration of a write.
+/// 日志器的可变状态。统一放在一把互斥锁后面：日志行都很短，锁只在写入期间持有。
 struct Config {
     sink: Sink,
     color: bool,
     show_target: bool,
-    /// Cached handle for [`Sink::File`]; opened lazily on first write.
+    /// [`Sink::File`] 的缓存句柄；首次写入时才惰性打开。
     file: Option<std::fs::File>,
 }
 
@@ -93,19 +90,18 @@ fn filter() -> Level {
     Level::from_index(FILTER.load(Ordering::Relaxed))
 }
 
-// ---------------------------------------------------------------- public API
+// ---------------------------------------------------------------- 公共 API
 
-/// Initialise from the `LOG_LEVEL` environment variable, falling back to
-/// [`Level::Info`] if it is unset or unrecognised. Returns the level in force,
-/// which is handy for a one-line "logging at warn" startup banner.
+/// 从 `LOG_LEVEL` 环境变量初始化，未设置或无法识别时回退到 [`Level::Info`]。
+/// 返回当前生效的级别，方便在启动时打一行 "当前按 warn 级别记录日志" 之类的横幅。
 ///
-/// Calling this is optional: the logger works without it.
+/// 这个调用是可选的：不调用它日志器也能正常工作。
 pub fn init() -> Level {
     init_from_env("LOG_LEVEL")
 }
 
-/// Like [`init`], but reads a variable you name — useful when several programs
-/// share a host and each wants its own knob.
+/// 与 [`init`] 类似，但读取由你指定的环境变量——当多个程序共用同一台主机、
+/// 每个程序都想要自己的开关时很有用。
 pub fn init_from_env(variable: &str) -> Level {
     let level = std::env::var(variable)
         .ok()
@@ -115,20 +111,19 @@ pub fn init_from_env(variable: &str) -> Level {
     level
 }
 
-/// Set the filter level. Records below it are dropped.
+/// 设置过滤级别。低于该级别的日志记录会被丢弃。
 pub fn set_level(level: Level) {
     FILTER.store(level.index(), Ordering::Relaxed);
 }
 
-/// Current filter level.
+/// 当前的过滤级别。
 pub fn level() -> Level {
     filter()
 }
 
-/// Is a record at this level going to be emitted?
+/// 这一级别的日志记录会被输出吗？
 ///
-/// Lock-free, so this is cheap enough to guard arguments that are expensive
-/// to build:
+/// 该调用无锁，所以足够廉价，可以用来保护那些构造代价高昂的参数：
 ///
 /// ```no_run
 /// # let response = "";
@@ -140,49 +135,48 @@ pub fn enabled(level: Level) -> bool {
     level >= filter()
 }
 
-/// Redirect output. See [`Sink`].
+/// 重定向输出。参见 [`Sink`]。
 pub fn set_sink(sink: Sink) {
     if let Ok(mut config) = config().lock() {
-        // Drop the old handle so a subsequent file sink reopens cleanly.
+        // 丢掉旧句柄，这样之后换成文件 sink 时能干净地重新打开。
         config.file = None;
         config.sink = sink;
     }
 }
 
-/// Append to a file. Shorthand for `set_sink(Sink::file(path))`.
+/// 追加写入文件。等价于 `set_sink(Sink::file(path))`。
 pub fn log_to_file(path: impl Into<PathBuf>) {
     set_sink(Sink::file(path));
 }
 
-/// Force colour on or off. By default it is auto-detected (see the crate docs).
+/// 强制打开或关闭颜色。默认是自动检测的（参见 crate 文档）。
 pub fn set_color(on: bool) {
     if let Ok(mut config) = config().lock() {
         config.color = on;
     }
 }
 
-/// Show or hide the `[module::path]` field. Defaults to on; turn it off for
-/// single-file programs where the target is always the same.
+/// 显示或隐藏 `[module::path]` 字段。默认为显示；如果程序只有一个文件、
+/// target 永远相同，可以关掉它。
 pub fn set_show_target(on: bool) {
     if let Ok(mut config) = config().lock() {
         config.show_target = on;
     }
 }
 
-// ---------------------------------------------------------------- core
+// ---------------------------------------------------------------- 核心
 
-/// Emit one record. Called by the macros; not meant to be called directly.
+/// 输出一条日志记录。由各个宏调用，不建议直接调用。
 ///
-/// The `Arguments` is passed straight through and the filter is checked
-/// before the sink lock is taken, so a filtered-out record really does cost
-/// one relaxed load and a comparison.
+/// `Arguments` 会被原样透传，而且过滤检查发生在获取 sink 锁之前，所以一条被过滤
+/// 掉的记录确实只花一次 relaxed load 加一次比较。
 #[doc(hidden)]
 pub fn log(level: Level, target: &str, args: fmt::Arguments<'_>) {
     if level < filter() {
         return;
     }
-    // A poisoned lock means another thread panicked while holding it. Logging
-    // must not panic in turn, so lose the line and carry on.
+    // 锁中毒意味着另一个线程在持锁期间 panic 了。记日志不能跟着 panic，
+    // 所以丢掉这一行，继续往下走。
     let Ok(mut config) = config().lock() else {
         return;
     };
@@ -193,9 +187,9 @@ pub fn log(level: Level, target: &str, args: fmt::Arguments<'_>) {
 
 impl Config {
     fn write_line(&mut self, line: &str) {
-        // Cloning the sink keeps the borrow checker happy without holding a
-        // reference across the mutation of `self.file`. Stderr/stdout clones
-        // are free; only the file variant copies a path.
+        // 克隆 sink 既能让借用检查器满意，又不必在修改 `self.file` 的过程中
+        // 一直持有一个引用。stderr/stdout 的克隆是零成本的，只有 File 变体
+        // 会复制一次路径。
         match self.sink.clone() {
             Sink::Stderr => {
                 let _ = writeln!(std::io::stderr(), "{line}");
@@ -211,8 +205,8 @@ impl Config {
                     Some(file) => {
                         let _ = writeln!(file, "{line}");
                     }
-                    // Unwritable path (bad drive, permissions). Fall back to
-                    // stderr rather than swallowing the line entirely.
+                    // 路径不可写（盘符有问题、权限不足）。退回到 stderr，
+                    // 而不是把整行日志整个吞掉。
                     None => {
                         let _ = writeln!(std::io::stderr(), "{line}");
                     }
@@ -222,7 +216,7 @@ impl Config {
     }
 }
 
-/// `2026-09-29 21:26:56.123  INFO   [target]  message`
+/// `2026-09-29 21:26:56.123  INFO   [target]  消息`
 fn format_line(
     level: Level,
     target: &str,
@@ -245,7 +239,7 @@ fn format_line(
 }
 
 fn open_append(path: &Path) -> Option<std::fs::File> {
-    // let-chain: needs edition 2024, which this crate already uses
+    // let-chain：需要 edition 2024，这个 crate 已经在用了
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
     {
@@ -258,8 +252,8 @@ fn open_append(path: &Path) -> Option<std::fs::File> {
         .ok()
 }
 
-/// Colour is only worth emitting when someone can see it: stderr must be a
-/// terminal, and on Windows the console must accept ANSI escapes.
+/// 只有别人看得见时，颜色才值得输出：stderr 必须是终端，在 Windows 上
+/// 控制台还必须接受 ANSI 转义序列。
 fn color_auto() -> bool {
     use std::io::IsTerminal;
     if !std::io::stderr().is_terminal() {
@@ -279,7 +273,7 @@ fn enable_ansi() -> bool {
         fn SetConsoleMode(handle: *mut c_void, mode: u32) -> i32;
     }
 
-    /// `STD_ERROR_HANDLE` — the sink we colour.
+    /// `STD_ERROR_HANDLE` —— 我们要给它着色的那个输出目标。
     const STD_ERROR_HANDLE: u32 = -12i32 as u32;
     const ENABLE_VIRTUAL_TERMINAL_PROCESSING: u32 = 0x0004;
 
@@ -298,9 +292,9 @@ fn enable_ansi() -> bool {
     true
 }
 
-// ---------------------------------------------------------------- macros
+// ---------------------------------------------------------------- 宏
 
-/// Log at [`Level::Trace`]. See [`log_at`] for an explicit level.
+/// 以 [`Level::Trace`] 级别记录日志。需要显式指定级别时参见 [`log_at`]。
 #[macro_export]
 macro_rules! trace {
     ($($arg:tt)*) => {
@@ -308,7 +302,7 @@ macro_rules! trace {
     };
 }
 
-/// Log at [`Level::Debug`].
+/// 以 [`Level::Debug`] 级别记录日志。
 #[macro_export]
 macro_rules! debug {
     ($($arg:tt)*) => {
@@ -316,7 +310,7 @@ macro_rules! debug {
     };
 }
 
-/// Log at [`Level::Info`].
+/// 以 [`Level::Info`] 级别记录日志。
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => {
@@ -324,7 +318,7 @@ macro_rules! info {
     };
 }
 
-/// Log at [`Level::Warn`].
+/// 以 [`Level::Warn`] 级别记录日志。
 #[macro_export]
 macro_rules! warn {
     ($($arg:tt)*) => {
@@ -332,7 +326,7 @@ macro_rules! warn {
     };
 }
 
-/// Log at [`Level::Error`].
+/// 以 [`Level::Error`] 级别记录日志。
 #[macro_export]
 macro_rules! error {
     ($($arg:tt)*) => {
@@ -340,7 +334,7 @@ macro_rules! error {
     };
 }
 
-/// Log at a level computed at run time.
+/// 以运行时计算出的级别记录日志。
 ///
 /// ```no_run
 /// let level = logkit::Level::Warn;
@@ -358,7 +352,7 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
-    /// Timestamps are 23 chars: `YYYY-MM-DD HH:MM:SS.mmm`.
+    /// 时间戳共 23 个字符：`YYYY-MM-DD HH:MM:SS.mmm`。
     const STAMP_LEN: usize = 23;
 
     fn line(level: Level, target: &str, color: bool, show_target: bool) -> String {
@@ -369,7 +363,7 @@ mod tests {
     fn layout_is_stamp_level_target_message() {
         let text = line(Level::Info, "myapp::inner", false, true);
         assert_eq!(&text[STAMP_LEN..], "  INFO   [myapp::inner]  hello 1");
-        // Sanity-check the timestamp shape rather than its value.
+        // 与其校验时间戳的具体取值，不如检查它的形状是否合理。
         assert_eq!(&text[4..5], "-");
         assert_eq!(&text[10..11], " ");
         assert_eq!(&text[13..14], ":");
@@ -392,12 +386,12 @@ mod tests {
 
     #[test]
     fn level_filter_is_inclusive_of_the_boundary() {
-        // Mirrors the comparison inside `log`.
+        // 与 `log` 内部的比较逻辑保持一致。
         let filter = Level::Warn;
         assert!(Level::Warn >= filter);
         assert!(Level::Error >= filter);
         assert!(!(Level::Info >= filter));
-        // Off silences everything.
+        // Off 会屏蔽一切。
         assert!(!(Level::Error >= Level::Off));
     }
 
@@ -406,12 +400,11 @@ mod tests {
         for level in [Level::Trace, Level::Debug, Level::Info, Level::Warn, Level::Error, Level::Off] {
             assert_eq!(Level::from_index(level.index()), level);
         }
-        // Out of range falls back to the safe end of the scale.
+        // 超出范围时回退到刻度上安全的那一端。
         assert_eq!(Level::from_index(200), Level::Off);
     }
 
-    /// The only test that touches global state, kept in one place so it cannot
-    /// race with others.
+    /// 唯一会碰到全局状态的测试，集中放在一处，免得和其他测试抢。
     #[test]
     fn file_sink_writes_and_global_level_round_trips() {
         let path = std::env::temp_dir().join(format!("logkit-test-{}.log", std::process::id()));
@@ -423,7 +416,7 @@ mod tests {
         info!("written to a file {}", 42);
         debug!("second line");
 
-        // Filtering reads the atomic, and `enabled` must agree with `log`.
+        // 过滤读取的是原子变量，`enabled` 必须与 `log` 保持一致。
         assert_eq!(level(), Level::Trace);
         assert!(enabled(Level::Trace));
         set_level(Level::Warn);
@@ -435,12 +428,12 @@ mod tests {
         assert!(text.contains("INFO "), "{text}");
         assert!(text.contains("written to a file 42"), "{text}");
         assert!(text.contains("second line"), "{text}");
-        // Colour must be suppressed for file output even though it is forced on.
+        // 即使颜色被强制打开，文件输出也必须屏蔽颜色。
         assert!(!text.contains('\x1b'), "file sink leaked escape codes: {text:?}");
 
-        // Regression: the filter has to be checked *before* the sink lock.
-        // With the lock first, a disabled call still queues behind whoever is
-        // writing, which is exactly what a filter exists to avoid.
+        // 回归测试：过滤检查必须在获取 sink 锁*之前*完成。
+        // 如果先加锁，一个被禁用的调用仍然要排在正在写入的线程后面，
+        // 而这恰恰是过滤器要避免的事情。
         set_level(Level::Off);
         let held = config().lock().expect("sink lock");
         let (tx, rx) = std::sync::mpsc::channel();
@@ -452,7 +445,7 @@ mod tests {
         drop(held);
         assert!(returned, "a filtered-out record waited for the sink lock");
 
-        // Restore defaults so other tests are unaffected.
+        // 恢复默认值，免得影响其他测试。
         set_sink(Sink::Stderr);
         set_level(Level::Info);
         let _ = std::fs::remove_file(&path);

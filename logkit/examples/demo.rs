@@ -1,4 +1,4 @@
-//! Smoke test / usage sample.
+//! 冒烟测试 / 用法示例。
 //!
 //! ```text
 //! cargo run -p logkit --example demo
@@ -7,20 +7,20 @@
 
 fn main() {
     let level = logkit::init();
-    logkit::info!("log level in force: {level}");
+    logkit::info!("当前日志级别：{level}");
 
-    logkit::trace!("finest detail, normally hidden");
-    logkit::debug!("useful when something is broken");
-    logkit::warn!("disk {}% full", 91);
-    logkit::error!("cannot reach {}", "127.0.0.1:8080");
+    logkit::trace!("最细的细节，平时是看不见的");
+    logkit::debug!("出问题时才有用的细节");
+    logkit::warn!("磁盘已用 {}%", 91);
+    logkit::error!("连不上 {}", "127.0.0.1:8080");
 
-    // Guard anything expensive behind `enabled` so it costs nothing when off.
+    // 把代价高昂的东西挡在 `enabled` 后面，关闭时就不花任何代价。
     if logkit::enabled(logkit::Level::Debug) {
-        logkit::debug!("expensive payload: {}", "x".repeat(32));
+        logkit::debug!("代价高昂的内容：{}", "x".repeat(32));
     }
 
-    // Level chosen at run time, and the target field turned off.
-    logkit::log_at!(logkit::Level::Info, "runtime level works");
+    // 级别在运行时决定，同时关掉 target 字段。
+    logkit::log_at!(logkit::Level::Info, "运行时决定的级别也能用");
     logkit::set_show_target(false);
-    logkit::info!("no [module::path] from here on");
+    logkit::info!("从这里开始不再带 [模块路径]");
 }

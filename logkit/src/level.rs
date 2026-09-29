@@ -1,29 +1,29 @@
 use std::fmt;
 
-/// Log severity.
+/// 日志严重级别。
 ///
-/// Ordering is meaningful: `Trace < Debug < Info < Warn < Error < Off`.
-/// A record is emitted when `record.level >= filter_level`, so setting the
-/// filter to [`Level::Warn`] keeps `Warn` and `Error` only, and
-/// [`Level::Off`] silences the logger completely.
+/// 大小顺序是有意义的：`Trace < Debug < Info < Warn < Error < Off`。
+/// 当 `record.level >= filter_level` 时记录才会被输出，所以把过滤级别设为
+/// [`Level::Warn`] 就只保留 `Warn` 和 `Error`，而 [`Level::Off`] 会彻底
+/// 关闭日志器。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Level {
-    /// Finest-grained detail; expected to be off in normal runs.
+    /// 最细粒度的细节；正常运行时应保持关闭。
     Trace = 0,
-    /// Developer-facing detail, e.g. raw payloads.
+    /// 面向开发者的细节，例如原始报文。
     Debug = 1,
-    /// Normal progress messages.
+    /// 正常的进度消息。
     Info = 2,
-    /// Something is off but the program keeps working.
+    /// 有点不对劲，但程序还能继续工作。
     Warn = 3,
-    /// The operation failed.
+    /// 操作失败了。
     Error = 4,
-    /// Silence everything. Useful as a filter value, never as a record level.
+    /// 屏蔽一切。适合当作过滤级别的取值，永远不要用作日志记录本身的级别。
     Off = 5,
 }
 
 impl Level {
-    /// Fixed-width (5 char) uppercase tag, so the message column never shifts.
+    /// 定宽（5 个字符）的大写标签，这样消息那一列永远不会错位。
     pub fn tag(self) -> &'static str {
         match self {
             Level::Trace => "TRACE",
@@ -35,29 +35,28 @@ impl Level {
         }
     }
 
-    /// ANSI escape that starts this level's colour.
+    /// 表示该级别颜色的 ANSI 起始转义序列。
     ///
-    /// Kept public because a caller may want to colour its own prefixes, but
-    /// note that [`crate::set_color`] is what decides whether the logger uses
-    /// it at all.
+    /// 之所以保持公开，是因为调用方可能想给自己的前缀上色；但要注意，真正决定
+    /// 日志器是否使用它的是 [`crate::set_color`]。
     pub fn color(self) -> &'static str {
         match self {
-            Level::Trace => "\x1b[90m", // bright black
-            Level::Debug => "\x1b[36m", // cyan
-            Level::Info => "\x1b[32m",  // green
-            Level::Warn => "\x1b[33m",  // yellow
-            Level::Error => "\x1b[31m", // red
+            Level::Trace => "\x1b[90m", // 亮黑
+            Level::Debug => "\x1b[36m", // 青色
+            Level::Info => "\x1b[32m",  // 绿色
+            Level::Warn => "\x1b[33m",  // 黄色
+            Level::Error => "\x1b[31m", // 红色
             Level::Off => "",
         }
     }
 
-    /// Compact form for storage in an atomic. Inverse of [`Level::from_index`].
+    /// 便于存进原子变量的紧凑形式。与 [`Level::from_index`] 互为逆操作。
     pub(crate) fn index(self) -> u8 {
         self as u8
     }
 
-    /// Rebuild a level from [`Level::index`]. Anything out of range is
-    /// treated as [`Level::Off`], which is the safe end of the scale.
+    /// 由 [`Level::index`] 还原出级别。任何超出范围的取值都按 [`Level::Off`]
+    /// 处理，也就是刻度上安全的那一端。
     pub(crate) fn from_index(value: u8) -> Level {
         match value {
             0 => Level::Trace,
@@ -69,14 +68,14 @@ impl Level {
         }
     }
 
-    /// Parse a level name, case-insensitively. Returns `None` for anything
-    /// unrecognised so the caller can decide whether to warn or fall back.
+    /// 解析级别名称，不区分大小写。无法识别的输入返回 `None`，这样调用方可以
+    /// 自己决定是给出警告还是回退到默认值。
     pub fn parse(text: &str) -> Option<Level> {
         match text.trim().to_ascii_lowercase().as_str() {
             "trace" | "t" => Some(Level::Trace),
             "debug" | "d" => Some(Level::Debug),
             "info" | "i" => Some(Level::Info),
-            // "warning" is the spelling people reach for first.
+            // 大家最先想到的拼写是 "warning"。
             "warn" | "warning" | "w" => Some(Level::Warn),
             "error" | "err" | "e" => Some(Level::Error),
             "off" | "none" | "silent" | "quiet" => Some(Level::Off),

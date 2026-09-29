@@ -2,10 +2,9 @@
 name = "logkit"
 version = "0.1.0"
 edition = "2024"
-description = "Drop-in leveled logger: timestamps, colours, file sink, no setup required"
+description = "开箱即用的分级日志器：时间戳、颜色、文件输出，无需任何配置"
 
 [dependencies]
-# The only dependency. Needed for correct *local* wall-clock time and
-# millisecond formatting; everything else is std. Both features are already
-# in the workspace lock file.
+# 唯一的依赖。用于获取正确的*本地*墙上时钟时间以及毫秒级格式化；
+# 其余全部来自 std。这两个 feature 已经在工作区的 lock 文件里了。
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
