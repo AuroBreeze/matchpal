@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use crate::pause::{self, Pause};
+
 pub struct Args {
     pub port: u16,
     pub out: PathBuf,
@@ -31,6 +33,8 @@ fetch access_token
   --log-all <文件>        把所有经过的请求 URL 记录到该文件
   --verbose               打印所有经过的请求
   --no-elevate            不自动提权（自己保证管理员权限）
+  --pause [秒]            结束前留住窗口：不带值停 10 秒，带值停 N 秒，0 = 一直等到按键
+  --no-pause              结束就关窗口，不留（脚本/CI 用）
   --help                  显示本帮助
 ";
 
@@ -114,13 +118,30 @@ pub fn parse_args() -> Args {
                 args.no_elevate = true;
                 index += 1;
             }
+            "--pause" => {
+                // 带值 `--pause 5`：最多停 5 秒；不带值 `--pause`：停默认 10 秒。
+                // 下一个参数不是数字就当作不带值（比如 `--pause --verbose`）。
+                let seconds = argv.get(index + 1).and_then(|s| s.parse::<u64>().ok());
+                let pause = match seconds {
+                    Some(0) => Pause::UntilKey,
+                    Some(n) => Pause::Secs(n),
+                    None => Pause::Secs(pause::DEFAULT_PAUSE_SECS),
+                };
+                // 立刻生效：这样后面即使紧跟一个非法参数、走到 exit 也照样留窗
+                pause::set(pause);
+                index += if seconds.is_some() { 2 } else { 1 };
+            }
+            "--no-pause" => {
+                pause::set(Pause::Off);
+                index += 1;
+            }
             "--help" | "-h" => {
                 print!("{HELP}");
-                std::process::exit(0);
+                pause::exit_with(0);
             }
             other => {
                 eprintln!("未知参数：{other}（用 --help 看用法）");
-                std::process::exit(2);
+                pause::exit_with(2);
             }
         }
     }

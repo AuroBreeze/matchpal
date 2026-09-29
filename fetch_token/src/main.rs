@@ -21,6 +21,7 @@ mod platform;
 mod args_handler;
 mod ca;
 mod proxy;
+mod pause;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -558,16 +559,18 @@ async fn main() {
     if !platform::is_admin() && !args.no_elevate {
         if platform::elevate() {
             println!("已发起提权，请在 UAC 弹窗点“是”——活儿会在新窗口里继续");
-            return;
+            // 提权后的新窗口是独立控制台，那边的 exit_with 会自动留窗。
+            // 这里也得走闸门：万一用户是从双击的窗口启动的，这个窗口马上要关了。
+            pause::exit_with(0);
         }
         eprintln!("提权被拒绝；请右键“以管理员身份运行”后重试");
-        std::process::exit(3);
+        pause::exit_with(3);
     }
 
     let out_dir = args.out.clone();
     if let Err(err) = std::fs::create_dir_all(&out_dir) {
         eprintln!("创建工作目录失败：{err}");
-        std::process::exit(2);
+        pause::exit_with(2);
     }
     let cert_path = out_dir.join("fetch-token-ca.pem");
     let ca_name = "WMPVP Token Sniffer CA".to_string();
@@ -645,7 +648,7 @@ async fn main() {
         Ok(proxy) => proxy,
         Err(err) => {
             eprintln!("构建代理失败：{err}");
-            std::process::exit(2);
+            pause::exit_with(2);
         }
     };
 
@@ -718,8 +721,11 @@ async fn main() {
             eprintln!("若其中确实有目标接口，用 --hosts <域名> 追加后重跑。");
         }
         eprintln!("没抓到 token。排查：1) 客户端是否走系统代理 2) 根证书是否装上 3) 加 --verbose 看请求");
-        std::process::exit(1);
+        pause::exit_with(1);
     }
+
+    // 成功路径也要留窗：双击运行时"已写入 config.local.json"这行字同样一闪而过
+    pause::exit_with(0);
 }
 
 #[cfg(test)]

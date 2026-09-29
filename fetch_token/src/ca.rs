@@ -4,6 +4,7 @@ use hudsucker::rustls::crypto::aws_lc_rs;
 use std::path::{Path,PathBuf};
 use std::process::Command;
 
+use crate::pause::exit_with;
 use crate::platform::notify_proxy_changed;
 
 pub fn proxy_key_path() -> &'static str {
@@ -91,14 +92,14 @@ pub fn creat_user_ca(cert_path: &PathBuf, ca_name: &String) -> RcgenAuthority {
             Ok(pair) => pair,
             Err(err) => {
                 eprintln!("生成密钥失败：{err}");
-                std::process::exit(2);
+                exit_with(2);
             }
         };
         let mut params = match CertificateParams::new(Vec::<String>::new()) {
             Ok(params) => params,
             Err(err) => {
                 eprintln!("构造证书参数失败：{err}");
-                std::process::exit(2);
+                exit_with(2);
             }
         };
         params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
@@ -110,12 +111,12 @@ pub fn creat_user_ca(cert_path: &PathBuf, ca_name: &String) -> RcgenAuthority {
             Ok(cert) => cert,
             Err(err) => {
                 eprintln!("自签名失败：{err}");
-                std::process::exit(2);
+                exit_with(2);
             }
         };
         if let Err(err) = std::fs::write(&cert_path, ca_cert.pem()) {
             eprintln!("写证书失败：{err}");
-            std::process::exit(2);
+            exit_with(2);
         }
         let issuer = Issuer::new(params, key_pair);
         RcgenAuthority::new(issuer, 1_000, aws_lc_rs::default_provider())
