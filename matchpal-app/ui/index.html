@@ -4,128 +4,149 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>matchpal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
   <style>
-    /* 配色对齐 token-monitor：炭黑玻璃 + 薄荷绿主色 + 等宽数据字 */
     :root {
       color-scheme: dark;
-      --glass-rgb: 48, 52, 56;
-      --panel-rgb: 16, 21, 30;
-      --sunken-rgb: 4, 8, 13;
-      --overlay-rgb: 255, 255, 255;
-      --line-rgb: 232, 238, 244;
-      --line-alpha: 0.138;
-      --line-strong-alpha: 0.238;
-      --line: rgba(var(--line-rgb), var(--line-alpha));
-      --line-strong: rgba(var(--line-rgb), var(--line-strong-alpha));
-      --control: rgba(var(--overlay-rgb), 0.049);
-      --glass-alpha: 0.68;
-      --glass: rgba(var(--glass-rgb), var(--glass-alpha));
-      --panel: rgba(var(--panel-rgb), 0.72);
-      --sunken: rgba(var(--sunken-rgb), 0.85);
-      --glass-filter: blur(32px) saturate(115%);
-      --text: #eef5fb;
-      --muted: #a3adbb;
-      --faint: #6d7681;
+      --bg: #050505;
+      --core: #0b0e11;
+      --core-2: #0e1216;
+      --hairline: rgba(255, 255, 255, 0.08);
+      --hairline-strong: rgba(255, 255, 255, 0.14);
+      --shell: rgba(255, 255, 255, 0.04);
+      --glass: rgba(22, 26, 30, 0.72);
+      --text: #f2f6f3;
+      --muted: #97a1ab;
+      --faint: #5f6a72;
       --accent: #b7ead4;
-      --accent-rgb: 183, 234, 212;
-      --ok: #b7ead4;
-      --bad: #f47788;
-      --warn: #f1d973;
+      --accent-dim: rgba(183, 234, 212, 0.14);
+      --accent-line: rgba(183, 234, 212, 0.35);
       --blue: #73bdf5;
-      --shadow: rgba(0, 0, 0, 0.36);
-      --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+      --warn: #f1d973;
+      --bad: #f47788;
+      --font-ui: "Space Grotesk", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+      --font-mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+      --ease: cubic-bezier(0.32, 0.72, 0, 1);
+      --r-outer: 1.6rem;
+      --r-inner: calc(1.6rem - 0.4rem);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; }
     body {
-      background:
-        radial-gradient(1100px 480px at 78% -12%, rgba(115, 189, 245, 0.05), transparent 60%),
-        radial-gradient(900px 420px at 6% 112%, rgba(183, 234, 212, 0.04), transparent 55%),
-        #0a0e13;
+      background: var(--bg);
       color: var(--text);
-      font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
-      font-size: 13.5px;
+      font-family: var(--font-ui);
+      font-size: 14px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       user-select: none;
     }
-    body::before {
-      content: "";
+    /* 网格光晕：薄荷 + 蓝，Ethereal Glass 的空间深度 */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(90px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb-a { width: 560px; height: 560px; left: -140px; top: -180px; background: rgba(183, 234, 212, 0.075); }
+    .orb-b { width: 480px; height: 480px; right: -120px; bottom: -160px; background: rgba(115, 189, 245, 0.055); }
+    .noise {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      opacity: 0.03;
+      opacity: 0.028;
+      z-index: 1;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
     }
+    header, #session-bar, main { position: relative; z-index: 2; }
 
-    /* ---------- 顶栏 ---------- */
+    /* ---------- 浮岛顶栏：不贴边、圆舱、玻璃 ---------- */
     header {
+      margin: 14px 18px 0;
+      padding: 9px 12px 9px 20px;
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 13px 20px;
-      border-bottom: 1px solid var(--line);
+      gap: 12px;
+      border-radius: 999px;
       background: var(--glass);
-      -webkit-backdrop-filter: var(--glass-filter);
-      backdrop-filter: var(--glass-filter);
+      -webkit-backdrop-filter: blur(28px) saturate(120%);
+      backdrop-filter: blur(28px) saturate(120%);
+      border: 1px solid var(--hairline);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.07);
     }
-    .brand { display: flex; align-items: baseline; gap: 9px; }
+    .brand { display: flex; align-items: baseline; gap: 10px; margin-right: 6px; }
     .brand .mark {
       width: 8px; height: 8px;
       border-radius: 50%;
       background: var(--accent);
-      box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.55);
+      box-shadow: 0 0 10px rgba(183, 234, 212, 0.7);
       transform: translateY(-1px);
     }
-    .brand h1 { font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
-    .brand .tag { font-size: 11.5px; color: var(--faint); letter-spacing: 0.08em; }
+    .brand h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
+    .brand .tag {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      letter-spacing: 0.22em;
+      color: var(--faint);
+      text-transform: uppercase;
+    }
+    .spacer { flex: 1; }
 
     .chip {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 5px 12px;
-      border-radius: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
       font-size: 12px;
-      background: var(--control);
-      border: 1px solid var(--line);
-      box-shadow: inset 0 1px 0 rgba(var(--overlay-rgb), 0.045);
+      background: var(--shell);
+      border: 1px solid var(--hairline);
     }
-    .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); transition: background 0.25s ease, box-shadow 0.25s ease; }
-    .chip.ok .dot { background: var(--ok); box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.55); }
-    .chip.bad .dot { background: var(--bad); box-shadow: 0 0 6px rgba(244, 119, 136, 0.5); }
-    .chip .label { color: var(--faint); font-size: 10px; letter-spacing: 0.12em; }
-    .chip .value { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+    .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); transition: background 0.5s var(--ease); }
+    .chip.ok .dot { background: var(--accent); box-shadow: 0 0 8px rgba(183, 234, 212, 0.6); }
+    .chip.bad .dot { background: var(--bad); box-shadow: 0 0 8px rgba(244, 119, 136, 0.5); }
+    .chip .label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--faint);
+    }
+    .chip .value { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
     .chip.ok .value { color: var(--text); }
 
-    .spacer { flex: 1; }
-
     button {
-      padding: 7px 18px;
-      border-radius: 8px;
-      border: 1px solid var(--line);
-      background: var(--control);
+      padding: 9px 22px;
+      border-radius: 999px;
+      border: 1px solid var(--hairline);
+      background: var(--shell);
       color: var(--text);
-      font-size: 12.5px;
+      font-family: var(--font-ui);
+      font-size: 13px;
       font-weight: 500;
       letter-spacing: 0.02em;
       cursor: pointer;
-      transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease, opacity 0.2s ease;
+      transition: background 0.5s var(--ease), border-color 0.5s var(--ease), transform 0.3s var(--ease), opacity 0.4s var(--ease);
     }
-    button:hover:not(:disabled) { background: rgba(var(--overlay-rgb), 0.09); border-color: var(--line-strong); }
+    button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.09); border-color: var(--hairline-strong); }
     button:active:not(:disabled) { transform: scale(0.97); }
-    button:focus-visible { outline: 2px solid rgba(var(--accent-rgb), 0.6); outline-offset: 2px; }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+    button:disabled { opacity: 0.38; cursor: not-allowed; }
     button.primary {
-      background: rgba(var(--accent-rgb), 0.16);
-      border-color: rgba(var(--accent-rgb), 0.38);
+      background: var(--accent-dim);
+      border-color: var(--accent-line);
       color: var(--accent);
     }
-    button.primary:hover:not(:disabled) { background: rgba(var(--accent-rgb), 0.24); border-color: rgba(var(--accent-rgb), 0.55); }
+    button.primary:hover:not(:disabled) { background: rgba(183, 234, 212, 0.22); border-color: rgba(183, 234, 212, 0.55); }
     button.on {
-      background: rgba(var(--accent-rgb), 0.16);
-      border-color: rgba(var(--accent-rgb), 0.38);
+      background: var(--accent-dim);
+      border-color: var(--accent-line);
       color: var(--accent);
     }
 
@@ -133,34 +154,36 @@
     #session-bar {
       display: flex;
       align-items: center;
-      gap: 16px;
-      padding: 10px 20px;
-      border-bottom: 1px solid var(--line);
-      min-height: 41px;
-      font-size: 12.5px;
+      gap: 14px;
+      margin: 12px 26px 0;
+      min-height: 36px;
+      font-size: 13px;
       color: var(--muted);
     }
-    #status { color: var(--text); font-weight: 500; }
-    #status.waiting { color: var(--warn); }
-    .roster { display: flex; gap: 4px; align-items: center; }
-    .roster i {
-      width: 13px; height: 5px;
-      border-radius: 3px;
-      background: rgba(var(--overlay-rgb), 0.08);
-      transition: background 0.3s ease, box-shadow 0.3s ease;
+    #status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      border: 1px solid var(--hairline);
+      border-radius: 999px;
+      padding: 5px 14px;
+      background: var(--shell);
     }
-    .roster i.on { background: var(--accent); box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.5); }
-    .roster .count { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: 7px; }
+    #status.waiting { color: var(--warn); border-color: rgba(241, 217, 115, 0.3); }
+    #status.live { color: var(--accent); border-color: var(--accent-line); }
     .pulse {
       display: none;
-      width: 7px; height: 7px;
+      width: 6px; height: 6px;
       border-radius: 50%;
       background: var(--warn);
-      animation: pulse 1.4s ease-in-out infinite;
+      animation: breathe 1.6s var(--ease) infinite;
     }
     .pulse.on { display: block; }
-    @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
-
+    @keyframes breathe { 0%, 100% { opacity: 0.25; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1); } }
     .toggle {
       display: inline-flex;
       align-items: center;
@@ -168,17 +191,37 @@
       font-size: 12px;
       color: var(--faint);
       cursor: pointer;
-      transition: color 0.2s ease;
+      transition: color 0.4s var(--ease);
     }
     .toggle:hover { color: var(--muted); }
     .toggle input { accent-color: var(--accent); cursor: pointer; }
+    .roster { display: flex; gap: 5px; align-items: center; }
+    .roster i {
+      width: 15px; height: 4px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.07);
+      transition: background 0.6s var(--ease), box-shadow 0.6s var(--ease);
+    }
+    .roster i.on { background: var(--accent); box-shadow: 0 0 6px rgba(183, 234, 212, 0.5); }
+    .roster .count { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-left: 7px; }
 
     /* ---------- 主区 ---------- */
     main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #error-banner {
+      display: none;
+      margin: 14px 26px 0;
+      padding: 12px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(244, 119, 136, 0.3);
+      background: rgba(244, 119, 136, 0.07);
+      color: #f5c2ca;
+      font-size: 13px;
+      line-height: 1.55;
+    }
     #table-wrap {
       flex: 1;
       overflow: auto;
-      padding: 20px 26px;
+      padding: 18px 26px 26px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -186,273 +229,293 @@
     #report-stack {
       display: none;
       flex-direction: column;
-      align-items: center;
+      align-items: stretch;
       width: 100%;
-      max-width: 1020px;
+      max-width: 1080px;
       margin: auto;
+      gap: 16px;
     }
     #report-stack.show { display: flex; }
 
-    /* ---------- 仪表盘：token-monitor 同款指标卡 ---------- */
+    /* ---------- Bento 仪表盘（双层嵌壳指标卡） ---------- */
     #dashboard {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 10px;
-      width: 100%;
-      margin-bottom: 16px;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
     }
     .tile {
-      background: var(--glass);
-      -webkit-backdrop-filter: var(--glass-filter);
-      backdrop-filter: var(--glass-filter);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 12px 15px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(var(--overlay-rgb), 0.05);
-      animation: rise 0.35s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+      border-radius: var(--r-outer);
+      background: var(--shell);
+      border: 1px solid var(--hairline);
+      padding: 6px;
+      opacity: 0;
+      transform: translateY(14px);
+      filter: blur(6px);
+      animation: materialize 0.9s var(--ease) forwards;
     }
-    .tile:nth-child(2) { animation-delay: 0.04s; }
-    .tile:nth-child(3) { animation-delay: 0.08s; }
-    .tile:nth-child(4) { animation-delay: 0.12s; }
-    .tile:nth-child(5) { animation-delay: 0.16s; }
+    .tile:nth-child(2) { animation-delay: 0.05s; }
+    .tile:nth-child(3) { animation-delay: 0.1s; }
+    .tile:nth-child(4) { animation-delay: 0.15s; }
+    .tile:nth-child(5) { animation-delay: 0.2s; }
+    @keyframes materialize {
+      to { opacity: 1; transform: translateY(0); filter: blur(0); }
+    }
+    .tile.span-2 { grid-column: span 2; }
+    .tile.span-3 { grid-column: span 3; }
+    .tile-inner {
+      border-radius: var(--r-inner);
+      background: var(--core);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06);
+      padding: 16px 18px;
+      height: 100%;
+    }
     .tile .label {
-      font-family: var(--mono);
-      font-size: 9.5px;
-      letter-spacing: 0.14em;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
       color: var(--faint);
-      margin-bottom: 7px;
+      margin-bottom: 12px;
     }
     .tile .value {
-      font-family: var(--mono);
-      font-size: 21px;
+      font-family: var(--font-mono);
+      font-size: 26px;
       font-weight: 600;
       color: var(--text);
-      line-height: 1.1;
+      line-height: 1;
       font-variant-numeric: tabular-nums;
     }
-    .tile .value .unit { font-size: 11px; font-weight: 400; color: var(--faint); margin-left: 3px; }
-    .tile .sub { font-size: 11px; color: var(--dim, var(--muted)); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tile.good .value { color: var(--accent); text-shadow: 0 0 24px rgba(183, 234, 212, 0.35); }
+    .tile .sub { font-size: 12px; color: var(--muted); margin-top: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tile .sub b { color: var(--accent); font-weight: 600; }
-    .tile.good .value { color: var(--accent); }
-    .tile.warn .value { color: var(--warn); }
+    .tile .value.small { font-size: 18px; }
 
-    /* ---------- 日志里的原始输出条目 ---------- */
-    #log-wrap .raw-entry {
-      color: var(--muted);
-      white-space: pre-wrap;
-      border-left: 2px solid rgba(var(--accent-rgb), 0.35);
-      padding-left: 9px;
-      margin: 6px 0;
-      user-select: text;
-    }
-    #log-wrap .raw-entry .raw-title {
-      color: var(--accent);
-      font-size: 10px;
-      letter-spacing: 0.12em;
-      margin-bottom: 4px;
-    }
-
-    /* ---------- 双队分表 ---------- */
+    /* ---------- 双队嵌壳卡片 ---------- */
     #teams {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      width: 100%;
+      gap: 12px;
+      align-items: start;
     }
     .team-card {
-      background: var(--panel);
-      -webkit-backdrop-filter: var(--glass-filter);
-      backdrop-filter: var(--glass-filter);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: 0 14px 36px var(--shadow), inset 0 1px 0 rgba(var(--overlay-rgb), 0.05);
-      overflow: hidden;
-      animation: rise 0.35s cubic-bezier(0.2, 0.7, 0.3, 1);
+      border-radius: var(--r-outer);
+      background: var(--shell);
+      border: 1px solid var(--hairline);
+      padding: 6px;
+      opacity: 0;
+      transform: translateY(14px);
+      filter: blur(6px);
+      animation: materialize 0.9s var(--ease) forwards;
     }
-    .team-card.t { animation-delay: 0.06s; }
-    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-    .team-card .card-head {
+    .team-card.t { animation-delay: 0.08s; }
+    .team-inner {
+      border-radius: var(--r-inner);
+      background: var(--core);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+    .card-head {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--line);
-      font-family: var(--mono);
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.14em;
+      gap: 9px;
+      padding: 14px 16px 12px;
     }
-    .team-card .card-head::before {
-      content: "";
-      width: 6px; height: 6px;
-      border-radius: 50%;
-    }
-    .team-card.ct .card-head { color: var(--accent); }
-    .team-card.ct .card-head::before { background: var(--accent); box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.55); }
-    .team-card.t .card-head { color: var(--blue); }
-    .team-card.t .card-head::before { background: var(--blue); box-shadow: 0 0 6px rgba(115, 189, 245, 0.55); }
-    .team-card .card-head .spacer { flex: 1; }
-    .meta-chip {
-      font-family: var(--mono);
+    .card-head .side-tag {
+      font-family: var(--font-mono);
       font-size: 10px;
-      color: var(--muted);
-      background: var(--control);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 2px 8px;
-      letter-spacing: 0.02em;
+      font-weight: 600;
+      letter-spacing: 0.24em;
+      padding: 3px 10px;
+      border-radius: 999px;
     }
-    table.team {
-      border-collapse: collapse;
-      width: 100%;
-      font-size: 12px;
-    }
-    .team th {
-      font-family: var(--mono);
+    .team-card.ct .side-tag { color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-line); }
+    .team-card.t .side-tag { color: var(--blue); background: rgba(115, 189, 245, 0.12); border: 1px solid rgba(115, 189, 245, 0.3); }
+    .card-head .spacer { flex: 1; }
+    .meta-chip {
+      font-family: var(--font-mono);
       font-size: 9.5px;
-      font-weight: 500;
       letter-spacing: 0.08em;
       color: var(--faint);
+      border: 1px solid var(--hairline);
+      border-radius: 999px;
+      padding: 3px 9px;
+    }
+    .team-card.ct { --team-color: var(--accent); --team-dim: rgba(183, 234, 212, 0.35); }
+    .team-card.t { --team-color: var(--blue); --team-dim: rgba(115, 189, 245, 0.35); }
+
+    table.team { border-collapse: collapse; width: 100%; }
+    .team th {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: var(--faint);
       text-align: right;
-      padding: 8px 10px;
-      border-bottom: 1px solid var(--line-strong);
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--hairline);
       white-space: nowrap;
     }
     .team th.player, .team td.player { text-align: left; }
     .team td {
-      padding: 6px 10px;
-      border-bottom: 1px solid var(--line);
-      font-family: var(--mono);
+      padding: 7px 12px;
+      font-family: var(--font-mono);
       font-size: 11.5px;
       color: var(--text);
       text-align: right;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
-    .team tbody tr { transition: background 0.15s ease; }
-    .team tbody tr:hover { background: rgba(var(--overlay-rgb), 0.045); }
+    .team tbody tr { transition: background 0.4s var(--ease); }
+    .team tbody tr:hover { background: rgba(255, 255, 255, 0.035); }
+    .team tbody tr:last-child td { border-bottom: none; }
     .team td.player {
-      font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
-      font-size: 12px;
+      font-family: var(--font-ui);
+      font-size: 12.5px;
       max-width: 150px;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .team td.player .sid { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+    .team td.player .sid { font-family: var(--font-mono); font-size: 10.5px; color: var(--faint); }
     .team td .dim { color: var(--faint); }
     .team .rating { font-weight: 600; }
     .team .rating.great { color: var(--accent); }
     .team .rating.low { color: var(--warn); }
     .team .rating.poor { color: var(--bad); }
-    /* 每列最高分：提亮 + 小三角 */
-    .team td.top { color: var(--accent); font-weight: 600; }
-    .team td .top-mark { font-size: 8px; margin-left: 3px; vertical-align: 1px; }
+    /* 每列最高分：队伍色提亮 + 发光小三角 */
+    .team td.top { color: var(--team-color); font-weight: 600; }
+    .team td .top-mark { font-size: 7.5px; margin-left: 3px; vertical-align: 1px; opacity: 0.9; }
     /* 平均行 */
     .team tfoot td {
-      border-top: 1px solid var(--line-strong);
-      border-bottom: none;
-      background: var(--control);
+      border-top: 1px solid var(--hairline-strong);
+      background: rgba(255, 255, 255, 0.02);
       color: var(--muted);
-      font-family: var(--mono);
       font-size: 10.5px;
-      padding: 7px 10px;
-      text-align: right;
+      padding: 8px 12px;
     }
     .team tfoot td.avg-label {
       text-align: left;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.2em;
       color: var(--faint);
-      font-size: 9.5px;
+      font-size: 9px;
+      text-transform: uppercase;
     }
 
     /* ---------- 空状态 ---------- */
     #empty {
       margin: auto;
       text-align: center;
-      max-width: 420px;
-      padding-bottom: 4vh;
+      max-width: 460px;
+      padding-bottom: 3vh;
     }
-    #empty .glyph {
-      font-family: var(--mono);
-      font-size: 38px;
-      color: rgba(var(--line-rgb), 0.14);
-      letter-spacing: 0.1em;
-      margin-bottom: 18px;
+    #empty .eyebrow {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.24em;
+      color: var(--accent);
+      border: 1px solid var(--accent-line);
+      border-radius: 999px;
+      padding: 4px 14px;
+      margin-bottom: 22px;
     }
-    #empty h2 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-    #empty p { font-size: 13px; color: var(--muted); line-height: 1.75; text-wrap: balance; }
-    #empty .steps { margin-top: 22px; display: flex; flex-direction: column; gap: 9px; text-align: left; }
+    #empty h2 {
+      font-size: 30px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 12px;
+    }
+    #empty p { font-size: 13px; color: var(--muted); line-height: 1.8; text-wrap: balance; }
+    #empty .steps { margin-top: 28px; display: flex; flex-direction: column; gap: 10px; text-align: left; }
     #empty .step {
       display: flex;
-      gap: 11px;
+      gap: 13px;
       align-items: baseline;
       font-size: 12.5px;
       color: var(--muted);
-      padding: 9px 13px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: var(--control);
+      padding: 5px;
+      border-radius: var(--r-outer);
+      background: var(--shell);
+      border: 1px solid var(--hairline);
     }
-    #empty .step b { font-family: var(--mono); font-size: 11px; color: var(--accent); font-weight: 600; }
-
-    /* ---------- 错误条 ---------- */
-    #error-banner {
-      display: none;
-      margin: 12px 26px 0;
-      padding: 11px 15px;
-      border-radius: 10px;
-      border: 1px solid rgba(244, 119, 136, 0.35);
-      background: rgba(244, 119, 136, 0.08);
-      color: #f8bcc5;
-      font-size: 13px;
-      line-height: 1.5;
+    #empty .step b {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-weight: 600;
+      flex: 0 0 auto;
     }
+    #empty .step span { padding: 4px 2px 4px 0; }
 
     /* ---------- 日志抽屉 ---------- */
     #log-drawer {
-      border-top: 1px solid var(--line);
-      background: var(--glass);
-      -webkit-backdrop-filter: var(--glass-filter);
-      backdrop-filter: var(--glass-filter);
       flex: 0 0 auto;
+      margin: 0 18px 14px;
+      border-radius: var(--r-outer);
+      background: var(--glass);
+      -webkit-backdrop-filter: blur(28px) saturate(120%);
+      backdrop-filter: blur(28px) saturate(120%);
+      border: 1px solid var(--hairline);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
     }
     #log-drawer summary {
       list-style: none;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 20px;
-      font-family: var(--mono);
-      font-size: 11px;
+      gap: 9px;
+      padding: 10px 18px;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      letter-spacing: 0.22em;
       color: var(--faint);
       cursor: pointer;
-      letter-spacing: 0.08em;
-      transition: color 0.2s ease;
+      text-transform: uppercase;
+      transition: color 0.4s var(--ease);
     }
     #log-drawer summary:hover { color: var(--muted); }
     #log-drawer summary::-webkit-details-marker { display: none; }
-    #log-drawer summary .chev { transition: transform 0.2s ease; font-size: 9px; }
+    #log-drawer summary .chev { font-size: 8px; transition: transform 0.5s var(--ease); }
     #log-drawer[open] summary .chev { transform: rotate(90deg); }
     #log-count {
-      font-family: var(--mono);
-      background: rgba(var(--overlay-rgb), 0.07);
+      font-family: var(--font-mono);
+      background: var(--shell);
+      border: 1px solid var(--hairline);
       border-radius: 999px;
-      padding: 1px 8px;
-      font-size: 10px;
+      padding: 1px 9px;
+      font-size: 9.5px;
     }
-    #log-wrap { max-height: 150px; overflow: auto; padding: 2px 20px 10px; font-family: var(--mono); font-size: 11.5px; }
+    #log-wrap { max-height: 150px; overflow: auto; padding: 2px 18px 12px; font-family: var(--font-mono); font-size: 11px; }
     #log-wrap div { padding: 2.5px 0; white-space: pre-wrap; color: var(--muted); }
     #log-wrap .warn { color: var(--warn); }
     #log-wrap .error { color: var(--bad); }
     #log-wrap .empty-log { color: var(--faint); }
+    #log-wrap .raw-entry {
+      border-left: 2px solid var(--team-dim, var(--accent-line));
+      padding-left: 10px;
+      margin: 7px 0;
+      user-select: text;
+    }
+    #log-wrap .raw-entry .raw-title {
+      color: var(--accent);
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      margin-bottom: 5px;
+    }
   </style>
 </head>
 <body>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="noise"></div>
+
   <header>
     <div class="brand">
       <span class="mark"></span>
       <h1>matchpal</h1>
-      <span class="tag">赛前三查</span>
+      <span class="tag">pre-lobby intel</span>
     </div>
     <span class="spacer"></span>
     <span id="token-chip" class="chip">
@@ -467,7 +530,7 @@
   </header>
 
   <div id="session-bar">
-    <span id="status">待机</span>
+    <span id="status">STANDBY</span>
     <span class="pulse" id="pulse"></span>
     <span class="spacer"></span>
     <label class="toggle" title="匹配成立和出表时自动弹出悬浮窗，游戏里直接看">
@@ -485,18 +548,18 @@
         <div id="teams"></div>
       </div>
       <div id="empty">
-        <div class="glyph">[ && ]</div>
+        <div class="eyebrow">STANDBY</div>
         <h2>等一局开始</h2>
         <p>监听运行时，匹配成立的瞬间就会收到推送；名单满员即出表，通常赶在地图加载完之前。</p>
         <div class="steps">
-          <div class="step"><b>01</b>确认右上角 token 有效，失效就重跑一次 fetch_token</div>
-          <div class="step"><b>02</b>点击「开始监听」，然后正常去匹配</div>
-          <div class="step"><b>03</b>人满自动出表，打完自动待机</div>
+          <div class="step"><b>01</b><span>确认右上角 token 有效，失效就重跑一次 fetch_token</span></div>
+          <div class="step"><b>02</b><span>点击「开始监听」，然后正常去匹配</span></div>
+          <div class="step"><b>03</b><span>人满自动出表，打完自动待机</span></div>
         </div>
       </div>
     </div>
     <details id="log-drawer">
-      <summary><span class="chev">▶</span> 运行日志 <span id="log-count">0</span></summary>
+      <summary><span class="chev">▶</span> Console <span id="log-count">0</span></summary>
       <div id="log-wrap"><div class="empty-log">暂无输出</div></div>
     </details>
   </main>
@@ -522,165 +585,18 @@
       return "poor";
     }
 
-    /** 用结构化数据画真正的表格：阵营分色、rating 分档、数字等宽右对齐 */
-    const STAT_COLS = [
-      { key: "rating_pro", label: "ratingPro", render: (v) => fmt(v), cls: true },
-      { key: "kd", label: "K/D", render: (v) => fmt(v) },
-      { key: "adr", label: "ADR", render: (v) => fmt(v, 1) },
-      { key: "we", label: "WE", render: (v) => fmt(v, 1) },
-      { key: "head_shot_rate", label: "爆头率", render: fmtPct },
-      { key: "map_win_rate", label: "地图胜率", render: fmtPct },
-      { key: "pvp_score", label: "PP分", render: (v) => (v == null ? null : String(Math.round(v))) },
-    ];
-
-    /** CT / T 分开渲染：每队一张卡，各列最高分标注，表底平均行 */
-    function renderReport(data) {
-      const teams = el("teams");
-      teams.innerHTML = "";
-      teams.append(buildTeamCard("CT", "ct", data.ct));
-      teams.append(buildTeamCard("T", "t", data.t));
-      renderDashboard(data);
-      el("report-stack").classList.add("show");
-      el("empty").style.display = "none";
-    }
-
-    function buildTeamCard(side, cls, rows) {
-      const card = document.createElement("div");
-      card.className = `team-card ${cls}`;
-
-      const head = document.createElement("div");
-      head.className = "card-head";
-      head.innerHTML = `${side} 队伍<span class="spacer"></span><span class="meta-chip">${rows.length} 人</span>`;
-      card.appendChild(head);
-
-      // 各列最高分（本队内比较）
-      const maxes = {};
-      for (const col of STAT_COLS) {
-        const vals = rows.map((r) => r[col.key]).filter((v) => v != null);
-        maxes[col.key] = vals.length ? Math.max(...vals) : null;
-      }
-      // 各列平均值（同为表底的"平均行"）
-      const avgs = {};
-      for (const col of STAT_COLS) {
-        const vals = rows.map((r) => r[col.key]).filter((v) => v != null);
-        avgs[col.key] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-      }
-
-      const wrap = document.createElement("div");
-      wrap.style.overflowX = "auto";
-      const table = document.createElement("table");
-      table.className = "team";
-      table.innerHTML = `
-        <thead><tr>
-          <th class="player">玩家</th>
-          ${STAT_COLS.map((c) => `<th>${c.label}</th>`).join("")}
-        </tr></thead>`;
-      const tbody = document.createElement("tbody");
-      for (const row of rows) {
-        const tr = document.createElement("tr");
-        let cells = `
-          <td class="player" title="${row.steamid}">${
-            row.nickname ? escapeHtml(row.nickname) : `<span class="sid">${row.steamid}</span>`
-          }</td>`;
-        for (const col of STAT_COLS) {
-          const value = row[col.key];
-          const isTop = value != null && maxes[col.key] != null && value === maxes[col.key];
-          const rendered = value == null ? '<span class="dim">—</span>' : col.render(value);
-          const ratingCls = col.cls ? `rating ${ratingClass(value)}` : "";
-          cells += `<td class="${ratingCls}${isTop ? " top" : ""}">${rendered}${
-            isTop ? '<span class="top-mark">▲</span>' : ""
-          }</td>`;
-        }
-        tr.innerHTML = cells;
-        tr.title = row.steamid;
-        tbody.appendChild(tr);
-      }
-      table.appendChild(tbody);
-      const tfoot = document.createElement("tfoot");
-      tfoot.innerHTML = `
-        <tr>
-          <td class="avg-label">平均值</td>
-          ${STAT_COLS.map((c) => `<td>${avgs[c.key] == null ? '<span class="dim">—</span>' : c.render(avgs[c.key])}</td>`).join("")}
-        </tr>`;
-      table.appendChild(tfoot);
-      wrap.appendChild(table);
-      card.appendChild(wrap);
-      return card;
-    }
-
-    /** 仪表盘指标卡：与 token-monitor 的数据面板同风格 */
-    function renderDashboard(data) {
-      const all = [...data.ct, ...data.t];
-      const avg = (rows, key) => {
-        const vals = rows.map((r) => r[key]).filter((v) => v != null);
-        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-      };
-      const ctRating = avg(data.ct, "rating_pro");
-      const tRating = avg(data.t, "rating_pro");
-      const best = all.reduce(
-        (top, r) => (r.rating_pro != null && (!top || r.rating_pro > top.rating_pro) ? r : top),
-        null
-      );
-      const avgScore = avg(all, "pvp_score");
-      const diff = ctRating != null && tRating != null ? ctRating - tRating : null;
-
-      const tiles = [
-        {
-          label: "CT 平均评分",
-          value: ctRating != null ? ctRating.toFixed(2) : "—",
-          cls: ctRating != null && tRating != null && ctRating >= tRating ? "good" : "",
-        },
-        {
-          label: "T 平均评分",
-          value: tRating != null ? tRating.toFixed(2) : "—",
-          cls: ctRating != null && tRating != null && tRating > ctRating ? "good" : "",
-        },
-        {
-          label: "CT − T",
-          value: diff != null ? (diff >= 0 ? "+" : "") + diff.toFixed(2) : "—",
-          cls: diff != null && Math.abs(diff) >= 0.15 ? "good" : "",
-        },
-        {
-          label: "全场最高评分",
-          value: best ? best.rating_pro.toFixed(2) : "—",
-          sub: best && best.nickname ? `<b>${escapeHtml(best.nickname)}</b>` : "",
-          cls: "good",
-        },
-        {
-          label: "平均 PP 分",
-          value: avgScore != null ? Math.round(avgScore) : "—",
-          sub: `${all.length} 名玩家`,
-        },
-      ];
-      el("dashboard").innerHTML = tiles
-        .map(
-          (t) => `
-        <div class="tile ${t.cls}">
-          <div class="label">${t.label}</div>
-          <div class="value">${t.value}</div>
-          ${t.sub ? `<div class="sub">${t.sub}</div>` : ""}
-        </div>`
-        )
-        .join("");
-    }
-
-    function escapeHtml(text) {
-      return text.replace(/[&<>"']/g, (c) => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-      }[c]));
-    }
-
     function setRunning(on) {
       el("start").disabled = on;
       el("stop").disabled = !on;
-      if (!on) { setStatus("待机"); el("pulse").classList.remove("on"); }
+      if (!on) { setStatus("STANDBY"); el("pulse").classList.remove("on"); }
     }
 
-    function setStatus(text, waiting) {
+    function setStatus(text, mode) {
       const s = el("status");
       s.textContent = text;
-      s.classList.toggle("waiting", !!waiting);
-      el("pulse").classList.toggle("on", !!waiting);
+      s.classList.toggle("waiting", mode === "waiting");
+      s.classList.toggle("live", mode === "live");
+      el("pulse").classList.toggle("on", !!mode && mode !== "idle");
     }
 
     function showRoster(full, loaded) {
@@ -735,13 +651,119 @@
       el("log-count").textContent = ++logCount;
     }
 
-    /** 兜底：拿不到结构化数据时退回 ASCII 文本 */
-    function renderTable(text) {
+    const STAT_COLS = [
+      { key: "rating_pro", label: "ratingPro", render: (v) => fmt(v), cls: true },
+      { key: "kd", label: "K/D", render: (v) => fmt(v) },
+      { key: "adr", label: "ADR", render: (v) => fmt(v, 1) },
+      { key: "we", label: "WE", render: (v) => fmt(v, 1) },
+      { key: "head_shot_rate", label: "爆头率", render: fmtPct },
+      { key: "map_win_rate", label: "地图胜率", render: fmtPct },
+      { key: "pvp_score", label: "PP分", render: (v) => (v == null ? null : String(Math.round(v))) },
+    ];
+
+    /** CT / T 分开渲染：每队一张嵌壳卡，各列最高分标注，表底平均行 */
+    function renderReport(data) {
+      const teams = el("teams");
+      teams.innerHTML = "";
+      teams.append(buildTeamCard("CT", "ct", data.ct));
+      teams.append(buildTeamCard("T", "t", data.t));
+      renderDashboard(data);
       el("report-stack").classList.add("show");
       el("empty").style.display = "none";
-      const teams = el("teams");
-      teams.innerHTML = `<div class="team-card ct"><div class="card-head">原始输出</div>
-        <div style="padding:12px 14px;overflow-x:auto"><pre style="margin:0;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--muted);user-select:text">${escapeHtml(text)}</pre></div></div>`;
+    }
+
+    function buildTeamCard(side, cls, rows) {
+      const card = document.createElement("div");
+      card.className = `team-card ${cls}`;
+      const inner = document.createElement("div");
+      inner.className = "team-inner";
+
+      const head = document.createElement("div");
+      head.className = "card-head";
+      head.innerHTML = `<span class="side-tag">${side}</span><span class="spacer"></span><span class="meta-chip">${rows.length} PLAYERS</span>`;
+      inner.appendChild(head);
+
+      const maxes = {};
+      const avgs = {};
+      for (const col of STAT_COLS) {
+        const vals = rows.map((r) => r[col.key]).filter((v) => v != null);
+        maxes[col.key] = vals.length ? Math.max(...vals) : null;
+        avgs[col.key] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      }
+
+      const table = document.createElement("table");
+      table.className = "team";
+      table.innerHTML = `
+        <thead><tr>
+          <th class="player">玩家</th>
+          ${STAT_COLS.map((c) => `<th>${c.label}</th>`).join("")}
+        </tr></thead>`;
+      const tbody = document.createElement("tbody");
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        let cells = `
+          <td class="player" title="${row.steamid}">${
+            row.nickname ? escapeHtml(row.nickname) : `<span class="sid">${row.steamid}</span>`
+          }</td>`;
+        for (const col of STAT_COLS) {
+          const value = row[col.key];
+          const isTop = value != null && maxes[col.key] != null && value === maxes[col.key];
+          const rendered = value == null ? '<span class="dim">—</span>' : col.render(value);
+          const ratingCls = col.cls ? `rating ${ratingClass(value)}` : "";
+          cells += `<td class="${ratingCls}${isTop ? " top" : ""}">${rendered}${
+            isTop ? '<span class="top-mark">▲</span>' : ""
+          }</td>`;
+        }
+        tr.innerHTML = cells;
+        tr.title = row.steamid;
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      const tfoot = document.createElement("tfoot");
+      tfoot.innerHTML = `
+        <tr>
+          <td class="avg-label">平均值</td>
+          ${STAT_COLS.map((c) => `<td>${avgs[c.key] == null ? '<span class="dim">—</span>' : c.render(avgs[c.key])}</td>`).join("")}
+        </tr>`;
+      table.appendChild(tfoot);
+      inner.appendChild(table);
+      card.appendChild(inner);
+      return card;
+    }
+
+    /** Bento 仪表盘：不对称跨度 + 双层嵌壳指标卡 */
+    function renderDashboard(data) {
+      const all = [...data.ct, ...data.t];
+      const avg = (rows, key) => {
+        const vals = rows.map((r) => r[key]).filter((v) => v != null);
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      };
+      const ctRating = avg(data.ct, "rating_pro");
+      const tRating = avg(data.t, "rating_pro");
+      const best = all.reduce(
+        (top, r) => (r.rating_pro != null && (!top || r.rating_pro > top.rating_pro) ? r : top),
+        null
+      );
+      const avgScore = avg(all, "pvp_score");
+      const diff = ctRating != null && tRating != null ? ctRating - tRating : null;
+
+      const tile = (span, label, valueHTML, sub, cls) => `
+        <div class="tile ${span} ${cls || ""}"><div class="tile-inner">
+          <div class="label">${label}</div>
+          <div class="value">${valueHTML}</div>
+          ${sub ? `<div class="sub">${sub}</div>` : ""}
+        </div></div>`;
+
+      el("dashboard").innerHTML =
+        tile("span-2", "CT AVG RATING", ctRating != null ? ctRating.toFixed(2) : "—", "",
+          ctRating != null && tRating != null && ctRating >= tRating ? "good" : "") +
+        tile("span-2", "T AVG RATING", tRating != null ? tRating.toFixed(2) : "—", "",
+          ctRating != null && tRating != null && tRating > ctRating ? "good" : "") +
+        tile("span-2", "CT − T", diff != null ? (diff >= 0 ? "+" : "") + diff.toFixed(2) : "—", "",
+          diff != null && Math.abs(diff) >= 0.15 ? "good" : "") +
+        tile("span-3", "TOP RATING", best ? best.rating_pro.toFixed(2) : "—",
+          best && best.nickname ? `<b>${escapeHtml(best.nickname)}</b>` : "", "good") +
+        tile("span-3", "AVG PP SCORE", avgScore != null ? Math.round(avgScore) : "—", `${all.length} PLAYERS`);
     }
 
     async function refreshTokenStatus() {
@@ -766,19 +788,19 @@
       const ev = e.payload;
       switch (ev.type) {
         case "Account":
-          setStatus("账号就绪");
+          setStatus("READY", "live");
           appendLog("info", `账号 ${ev.data.steamid} · token ${ev.data.masked_token}`);
           break;
         case "Connected":
-          setStatus("已连接 · 等待匹配推送", true);
+          setStatus("LISTENING · 等待匹配推送", "waiting");
           showRoster(ev.data.full, 0);
           break;
         case "Progress":
-          setStatus("有人进来了", true);
+          setStatus("ROSTER", "waiting");
           showRoster(ev.data.full, ev.data.loaded);
           break;
         case "Resubscribed":
-          setStatus(`已等待 ${Math.round(ev.data.waited_secs)} 秒无推送 · 持续重订中`, true);
+          setStatus(`RESUBSCRIBE · ${Math.round(ev.data.waited_secs)}s`, "waiting");
           appendLog("info", `重新订阅（每 ${Math.round(ev.data.interval_secs)} 秒一次）`);
           break;
         case "Notice":
@@ -789,9 +811,8 @@
           const report = ev.data && ev.data.data;
           if (report && report.ct !== undefined) renderReport(report);
           else renderTable((ev.data && ev.data.text) || "（没有内容）");
-          // CLI 原始输出进日志抽屉
           if (ev.data && ev.data.text) appendRaw(ev.data.text);
-          setStatus("已出表");
+          setStatus("REPORTED", "live");
           showRoster(0, 0);
           el("pulse").classList.remove("on");
           break;
@@ -801,6 +822,15 @@
           break;
       }
     });
+
+    /** 兜底：拿不到结构化数据时退回 ASCII 文本 */
+    function renderTable(text) {
+      el("report-stack").classList.add("show");
+      el("empty").style.display = "none";
+      const teams = el("teams");
+      teams.innerHTML = `<div class="team-card ct"><div class="team-inner"><div class="card-head"><span class="side-tag">RAW</span></div>
+        <div style="padding:12px 16px 16px;overflow-x:auto"><pre style="margin:0;font-family:var(--font-mono);font-size:11px;line-height:1.6;color:var(--muted);user-select:text">${escapeHtml(text)}</pre></div></div></div>`;
+    }
 
     el("start").addEventListener("click", async () => {
       el("error-banner").style.display = "none";
@@ -812,7 +842,7 @@
           args: { full: 10, keep_going: false, auto_floating: el("auto-float").checked },
         });
         setRunning(true);
-        setStatus("连接中…", true);
+        setStatus("CONNECTING…", "waiting");
       } catch (err) {
         showError(String(err));
       }
@@ -821,7 +851,7 @@
     el("stop").addEventListener("click", async () => {
       try {
         await invoke("stop_watch");
-        setStatus("正在停止…", true);
+        setStatus("STOPPING…", "waiting");
       } catch (err) {
         appendLog("warn", String(err));
       }
