@@ -149,7 +149,7 @@ pub fn log_to_file(path: impl Into<PathBuf>) {
     set_sink(Sink::file(path));
 }
 
-/// 强制打开或关闭颜色。默认是自动检测的（参见 crate 文档）。
+/// 强制打开或关闭颜色。默认是自动检测的(参见 crate 文档)。
 pub fn set_color(on: bool) {
     if let Ok(mut config) = config().lock() {
         config.color = on;
@@ -205,7 +205,7 @@ impl Config {
                     Some(file) => {
                         let _ = writeln!(file, "{line}");
                     }
-                    // 路径不可写（盘符有问题、权限不足）。退回到 stderr，
+                    // 路径不可写(盘符有问题、权限不足)。退回到 stderr，
                     // 而不是把整行日志整个吞掉。
                     None => {
                         let _ = writeln!(std::io::stderr(), "{line}");

@@ -1,7 +1,7 @@
 //! 从 `config.local.json` 里读 token 与 steamid
 //!
 //! 键名候选顺序是照抄 Python 版踩出来的 —— 客户端、网页端、安卓 App 写出来的
-//! 键名不一样（`access_token` / `Access_Token` / `steam_cn_token` …），
+//! 键名不一样(`access_token` / `Access_Token` / `steam_cn_token` …)，
 //! 换顺序就可能读不到。
 
 use std::path::Path;
@@ -73,7 +73,7 @@ pub fn load(path: &Path) -> Result<Credentials, ConfigError> {
     parse(&text)
 }
 
-/// 从 JSON 文本解析凭据（抽出来是为了能单测）
+/// 从 JSON 文本解析凭据(抽出来是为了能单测)
 pub fn parse(text: &str) -> Result<Credentials, ConfigError> {
     let value: Value = serde_json::from_str(text).map_err(ConfigError::Parse)?;
     Ok(extract(&value))

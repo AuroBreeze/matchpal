@@ -1,9 +1,9 @@
 //! 把对局信息渲染成等宽表格
 //!
-//! 与 Python 版的差别（都是有意修的，不是漏抄）：
+//! 与 Python 版的差别(都是有意修的，不是漏抄)：
 //!
 //! - **按显示宽度对齐**：Python 直接拿 f-string 的 `<5` / `:>8` 对齐，那是按**字符数**算的，
-//!   于是"队伍""爆头"这些中文表头都会歪。这里统一按显示宽度补空格（中文算 2 列）。
+//!   于是"队伍""爆头"这些中文表头都会歪。这里统一按显示宽度补空格(中文算 2 列)。
 //! - 缺字段显示 `-` 而不是 Python 的 `None`。
 //! - `headshot` 是 0 时显示 `0` —— Python 写的 `value or '-'` 会把 0 也变成 `-`。
 
@@ -25,7 +25,7 @@ const COL_RATING: usize = 11;
 const COL_PVP: usize = 7;
 const COL_WINRATE: usize = 10;
 
-/// 显示宽度：东亚字符占 2 列（阈值抄 Python 的 `ord(ch) > 0x2E80`）
+/// 显示宽度：东亚字符占 2 列(阈值抄 Python 的 `ord(ch) > 0x2E80`)
 pub fn display_width(text: &str) -> usize {
     text.chars().map(char_width).sum()
 }
@@ -34,9 +34,9 @@ fn char_width(ch: char) -> usize {
     if (ch as u32) > 0x2E80 { 2 } else { 1 }
 }
 
-/// 按显示宽度截断，截了就补一个省略号（`…` 只占 1 列）
+/// 按显示宽度截断，截了就补一个省略号(`…` 只占 1 列)
 ///
-/// 昵称里中文很长很常见（"汉东省刑侦大队第一狙击手祁同伟" 是 34 列），
+/// 昵称里中文很长很常见("汉东省刑侦大队第一狙击手祁同伟" 是 34 列)，
 /// 不截断整张表会被一个人撑爆。
 pub fn truncate_display(text: &str, max: usize) -> String {
     if display_width(text) <= max {
@@ -198,10 +198,10 @@ pub fn render_unknown_sides(teams: &Teams) -> Option<String> {
     let list: Vec<String> = teams
         .unknown
         .iter()
-        .map(|player| format!("{}（{}）", player.steamid, player.side.label()))
+        .map(|player| format!("{}({})", player.steamid, player.side.label()))
         .collect();
     Some(format!(
-        "有 {} 人的阵营无法识别，未计入表格（推送中的 side 可能已变更）：{}",
+        "有 {} 人的阵营无法识别，未计入表格(推送中的 side 可能已变更)：{}",
         teams.unknown.len(),
         list.join("、")
     ))
@@ -212,7 +212,7 @@ pub fn describe_push_type() -> i64 {
     PUSH_TYPE
 }
 
-// ---------------------------------------------------------------- 战绩表（按昵称）
+// ---------------------------------------------------------------- 战绩表(按昵称)
 //
 // 推送帧里**没有昵称**，昵称、K/D、评分、地图胜率全都只在战绩接口的返回里，
 // 所以"人满之后出的那张表"必须以战绩接口为主数据源，推送帧只提供
@@ -230,7 +230,7 @@ const RPT_PVP: usize = 6;
 
 /// 渲染"按昵称出的战绩表"。
 ///
-/// `info` 为 `None` 时只出地图与人数（离线回放一份战绩响应就是这种情况）。
+/// `info` 为 `None` 时只出地图与人数(离线回放一份战绩响应就是这种情况)。
 pub fn render_report(
     info: Option<&MatchInfo>,
     report: &crate::model::StatsReport,
@@ -288,7 +288,7 @@ pub fn render_report(
     }
 
     out.push_str(&format!(
-        "名单人数：CT {} / T {}（共 {}）",
+        "名单人数：CT {} / T {}(共 {})",
         report.ct.len(),
         report.t.len(),
         report.len()
@@ -351,7 +351,7 @@ fn render_team_summary(side: &str, team: &crate::model::TeamStat, report: &crate
             .parse::<f64>()
             .map(|number| format!("{:.1}%", number * 100.0))
             .unwrap_or_else(|_| value.clone());
-        line.push_str(&format!("  {label} {shown}（{who}）"));
+        line.push_str(&format!("  {label} {shown}({who})"));
     }
     line
 }
@@ -514,7 +514,7 @@ mod tests {
         assert!(text.contains("名单人数：CT 0 / T 0"));
     }
 
-    // ---------------------------------------------------------- 战绩表（按昵称）
+    // ---------------------------------------------------------- 战绩表(按昵称)
 
     fn sample_report() -> crate::model::StatsReport {
         crate::model::StatsReport::from_value(&json!({
@@ -576,7 +576,7 @@ mod tests {
 
         // 长昵称被截断，没有把表撑爆
         for line in text.lines() {
-            assert!(display_width(line) <= RULE, "有行超宽（{} 列）：{line}", display_width(line));
+            assert!(display_width(line) <= RULE, "有行超宽({} 列)：{line}", display_width(line));
         }
     }
 
@@ -587,7 +587,7 @@ mod tests {
         assert!(text.contains("ratingPro 1.13"));
         assert!(text.contains("胜率 49.0%"));
         // "最高"里的 SteamID 要换成昵称
-        assert!(text.contains("狙击率最高 26.0%（甲）"), "{text}");
+        assert!(text.contains("狙击率最高 26.0%(甲)"), "{text}");
         assert!(!text.contains("7656119"));
     }
 
@@ -653,13 +653,13 @@ mod tests {
         let text = render_report(None, &crate::model::StatsReport::default(), 0, 10);
         assert!(text.contains("名单 0/10"));
         assert!(text.contains("昵称"));
-        // 一行数据都没有，但表头必须在（调用方据此判断"还没数据"）
+        // 一行数据都没有，但表头必须在(调用方据此判断"还没数据")
     }
 
     // ---------------------------------------------------------- 真实形状的完整样本
     //
     // src/testdata/stats_response.json 是一份 10 人齐全的战绩接口响应
-    // （steamId / 昵称已随机化，其余字段原样保留）。--replay 也能直接吃这个文件。
+    // (steamId / 昵称已随机化，其余字段原样保留)。--replay 也能直接吃这个文件。
 
     #[test]
     fn fixture_response_parses_and_renders() {
@@ -677,7 +677,7 @@ mod tests {
         let table = render_report(Some(&info), &report, 10, 10);
         assert!(table.contains("测试玩家01"), "第一行昵称应出现在表格里");
         assert!(table.contains("测试玩家10"), "最后一行昵称应出现在表格里");
-        assert!(table.contains("名单人数：CT 5 / T 5（共 10）"));
+        assert!(table.contains("名单人数：CT 5 / T 5(共 10)"));
         assert!(table.contains("队伍汇总"), "两侧的队伍汇总都应渲染");
     }
 }

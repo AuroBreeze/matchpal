@@ -23,7 +23,7 @@ pub enum Level {
 }
 
 impl Level {
-    /// 定宽（5 个字符）的大写标签，这样消息那一列永远不会错位。
+    /// 定宽(5 个字符)的大写标签，这样消息那一列永远不会错位。
     pub fn tag(self) -> &'static str {
         match self {
             Level::Trace => "TRACE",

@@ -1,6 +1,6 @@
 # matchpal
 
-完美世界电竞（CS）赛前三查工具。在匹配成立、地图尚未加载时，自动获取当前对局十名玩家的历史数据（ratingPro、K/D、ADR、爆头率、狙击率、闪光成功率、地图胜率、PP 分），按阵营渲染为一张战绩表，帮助玩家在开局前判断对局质量、选择战术与心态预期。
+完美世界电竞(CS)赛前三查工具。在匹配成立、地图尚未加载时，自动获取当前对局十名玩家的历史数据(ratingPro、K/D、ADR、爆头率、狙击率、闪光成功率、地图胜率、PP 分)，按阵营渲染为一张战绩表，帮助玩家在开局前判断对局质量、选择战术与心态预期。
 
 基于完美世界电竞平台官方接口实现，本地运行，Rust 编写，无运行时依赖。
 
@@ -10,7 +10,7 @@
 | --- | --- |
 | 解决的问题 | 匹配成立后，玩家需要手动打开观将台逐个搜索十名玩家的历史战绩，全程约一到两分钟，经常错过开局。 |
 | 产品形态 | 一套 Windows 命令行工具，随对局自动完成"获取数据 → 等人齐 → 出表"，通常在对局开始前完成。 |
-| 适用人群 | 使用完美世界电竞平台的天梯玩家；希望将战绩数据接入其他工具链（ndjson 导出）的用户。 |
+| 适用人群 | 使用完美世界电竞平台的天梯玩家；希望将战绩数据接入其他工具链(ndjson 导出)的用户。 |
 | 不做的事 | 不采集任何平台未提供的数据，不影响对局进程，不修改客户端，不自动化任何游戏内操作。 |
 
 ## 与其他方案对比
@@ -18,7 +18,7 @@
 | 方案 | 数据获取 | 单局耗时 | 依赖 | 自动化程度 | 数据留存 |
 | --- | --- | --- | --- | --- | --- |
 | 官方观将台 | 手动逐个搜索 | 1–2 分钟 | 浏览器登录 | 全手动 | 无 |
-| **matchpal（本项目）** | 自动查十人 | 约 3–5 秒 | 单个可执行文件 | 全自动，人满即出表 | JSON / NDJSON 快照 |
+| **matchpal(本项目)** | 自动查十人 | 约 3–5 秒 | 单个可执行文件 | 全自动，人满即出表 | JSON / NDJSON 快照 |
 
 ## 工作区结构
 
@@ -26,15 +26,15 @@
 | --- | --- |
 | `fetch_token` | 本地代理工具，从完美世界客户端流量中捕获 access_token，生成配置文件 |
 | `match_watcher` | 主程序：订阅对局推送，等名单满员，查询战绩并渲染表格 |
-| `logkit` | 两个程序共用的分级日志库（时间戳、级别过滤、颜色、文件输出） |
-| `matchpal-app` | 桌面端（开发中）：Tauri 壳，复用 `match_watcher` 的 lib 与事件流；`fetch_token` 不进其进程，保持独立 |
+| `logkit` | 两个程序共用的分级日志库(时间戳、级别过滤、颜色、文件输出) |
+| `matchpal-app` | 桌面端(开发中)：Tauri 壳，复用 `match_watcher` 的 lib 与事件流；`fetch_token` 不进其进程，保持独立 |
 
-构建要求：Rust 1.85 及以上（edition 2024），Windows 10/11。
+构建要求：Rust 1.85 及以上(edition 2024)，Windows 10/11。
 
 ## 快速开始
 
 ```bash
-# 第一步：获取 token（每个登录会话执行一次，token 过期后重新执行）
+# 第一步：获取 token(每个登录会话执行一次，token 过期后重新执行)
 cargo run -p fetch_token --release
 
 # 第二步：监听对局并输出战绩表
@@ -43,20 +43,20 @@ cargo run -p match_watcher --release
 
 第一步运行时会弹出 UAC 提权确认，批准后进入拦截状态；此时在完美世界客户端中登录或进入个人页面，程序命中 token 后自动写入 `config.local.json` 并退出，随后自动还原系统代理、卸载临时证书。
 
-第二步运行后连接对局推送通道，等待当前对局名单满 10 人（可通过 `--full` 调整），查询战绩接口并输出表格，快照默认写入 `capture/match_snapshot.json`。
+第二步运行后连接对局推送通道，等待当前对局名单满 10 人(可通过 `--full` 调整)，查询战绩接口并输出表格，快照默认写入 `capture/match_snapshot.json`。
 
 ## 使用指南
 
 ### fetch_token
 
-执行流程：自动提权（UAC）→ 运行时生成一把仅存在于本机的 CA 证书 → 安装到 Windows 根证书库 → 将系统代理临时指向 `127.0.0.1:8080` → 拦截并检查 HTTP/S 流量中的 token 字段（URL、请求头、Cookie、请求体、JSON 响应）→ 命中后写入配置文件 → 还原系统代理并卸载证书。
+执行流程：自动提权(UAC)→ 运行时生成一把仅存在于本机的 CA 证书 → 安装到 Windows 根证书库 → 将系统代理临时指向 `127.0.0.1:8080` → 拦截并检查 HTTP/S 流量中的 token 字段(URL、请求头、Cookie、请求体、JSON 响应)→ 命中后写入配置文件 → 还原系统代理并卸载证书。
 
 - 仅检查完美世界 / Steam 系域名白名单内的流量，白名单外原样转发。实测命中的域名：
 
   | 域名 | 角色 |
   | --- | --- |
   | `pwaweblogin.wmpvp.com` | 下发 / 携带 `steam_cn_token` |
-  | `appactivity.wmpvp.com` | 对战接口（`getWebsocketInfo` 等） |
+  | `appactivity.wmpvp.com` | 对战接口(`getWebsocketInfo` 等) |
   | `gwapi.pwesports.cn` | token 挂在 URL 查询串上 |
   | `wss-csgo-pwa.wmpvp.com` | 对局 WebSocket 握手 |
 
@@ -67,25 +67,25 @@ cargo run -p match_watcher --release
 
 | 参数 | 说明 |
 | --- | --- |
-| `--port <端口>` | 本地监听端口（默认 8080） |
+| `--port <端口>` | 本地监听端口(默认 8080) |
 | `--hosts <域名>` | 在默认白名单之外追加域名 |
-| `--timeout <秒>` | 最长等待时间（默认 300） |
-| `--keep-ca` | 退出时保留根证书（默认卸载） |
+| `--timeout <秒>` | 最长等待时间(默认 300) |
+| `--keep-ca` | 退出时保留根证书(默认卸载) |
 | `--log-all <文件>` | 记录所有经过的请求 URL，用于排查抓取失败 |
-| `--no-pause` | 结束后不留窗（脚本 / CI 使用） |
+| `--no-pause` | 结束后不留窗(脚本 / CI 使用) |
 
 退出码：`0` 捕获并写入 · `1` 超时未命中 · `2` 环境或参数错误 · `3` 提权被拒绝 · `4` 捕获成功但写入失败。
 
 ### match_watcher
 
-数据链路（自抓包实测还原）：
+数据链路(自抓包实测还原)：
 
 ```text
-config.local.json（access_token + steamid）
+config.local.json(access_token + steamid)
   ↓  GET  getWebsocketInfo?steamId=<本机账号>&platform=2，请求头携带 accessToken
   ↓  WS   wss://wss-csgo-pwa.wmpvp.com，握手携带 Cookie: PVP_APP_TOKEN
-  ↓  订阅后接收推送 messageType 10002（matchId / 地图 / 比分 / playerList）
-  ↓  POST 按两队 steamid 查询 getTeamStatisticsData（玩家昵称仅该接口返回）
+  ↓  订阅后接收推送 messageType 10002(matchId / 地图 / 比分 / playerList)
+  ↓  POST 按两队 steamid 查询 getTeamStatisticsData(玩家昵称仅该接口返回)
 输出：表格 → stdout；诊断日志 → stderr；快照 → capture/match_snapshot.json
 ```
 
@@ -95,21 +95,21 @@ stdout 与 stderr 有意分离：表格是产品输出，可重定向或进入�
 
 | 参数 | 说明 |
 | --- | --- |
-| `--full <人数>` | 名单达到该人数即出表并停止（默认 10，`0` 表示不等满） |
-| `--once` | 收到第一帧即出表，不等待满员（调试用） |
+| `--full <人数>` | 名单达到该人数即出表并停止(默认 10，`0` 表示不等满) |
+| `--once` | 收到第一帧即出表，不等待满员(调试用) |
 | `--keep-going` | 出表后不退出，持续监听 |
-| `--stats` | 将战绩并入表格（用于 `--once` 与持续模式） |
+| `--stats` | 将战绩并入表格(用于 `--once` 与持续模式) |
 | `--timeout <秒>` | 最长运行时间，`0` 为不限 |
-| `--json-out <文件>` / `--no-json-out` | 快照写入路径（默认 `capture/match_snapshot.json`）/ 关闭 |
+| `--json-out <文件>` / `--no-json-out` | 快照写入路径(默认 `capture/match_snapshot.json`)/ 关闭 |
 | `--export <写法>` | 追加导出目标：`json:<文件>` 或 `ndjson:<文件>`，可重复 |
-| `--resubscribe <秒>` | 未收到推送时重新订阅的间隔（默认 15，`0` 关闭） |
-| `--retries <次数>` | 断线重连次数（默认 5） |
+| `--resubscribe <秒>` | 未收到推送时重新订阅的间隔(默认 15，`0` 关闭) |
+| `--retries <次数>` | 断线重连次数(默认 5) |
 | `--replay <文件>` | 离线回放推送帧或战绩响应，不连接网络 |
 | `--log-level <级别>` | trace / debug / info / warn / error / off |
 
 退出码：`0` 正常结束 · `1` token 无效或未收到对局推送 · `2` 配置或参数错误。
 
-离线回放示例（仓库自带一份 10 人齐全的样本数据，steamId 与昵称已随机化）：
+离线回放示例(仓库自带一份 10 人齐全的样本数据，steamId 与昵称已随机化)：
 
 ```bash
 cargo run -p match_watcher --release -- --replay match_watcher/src/testdata/stats_response.json
@@ -144,13 +144,13 @@ cargo run -p match_watcher --release -- --replay match_watcher/src/testdata/stat
 cargo test --workspace
 ```
 
-- `fetch_token`：token 字段识别规则、域名白名单边界（近似域名、后缀匹配）、请求体可读性判定等回归测试。
-- `match_watcher`：推送帧解析、阵营分组、表格渲染（中英文混排宽度对齐）、导出器、WebSocket 超时判定，以及基于 `src/testdata/stats_response.json` 完整样本的解析与渲染链路测试。
+- `fetch_token`：token 字段识别规则、域名白名单边界(近似域名、后缀匹配)、请求体可读性判定等回归测试。
+- `match_watcher`：推送帧解析、阵营分组、表格渲染(中英文混排宽度对齐)、导出器、WebSocket 超时判定，以及基于 `src/testdata/stats_response.json` 完整样本的解析与渲染链路测试。
 - `logkit`：级别过滤与格式化单元测试，可运行 `cargo run -p logkit --example demo` 查看各级别输出效果。
 
 ## 安全与隐私说明
 
 - fetch_token 运行期间，本机走系统代理的 HTTPS 流量会经过本地代理并被解密检查；白名单之外的内容不做任何记录。
 - CA 证书每次运行现场生成、正常退出即卸载；私钥不落盘分发。
-- `config.local.json`（明文 token）与 `capture/`（CA 证书、抓包日志、快照）均在 `.gitignore` 中，其中的 URL 与快照可能直接包含 token，请勿提交或外发。
+- `config.local.json`(明文 token)与 `capture/`(CA 证书、抓包日志、快照)均在 `.gitignore` 中，其中的 URL 与快照可能直接包含 token，请勿提交或外发。
 - 本项目为个人工具，接口自抓包实测还原，平台协议变更可能导致功能失效。

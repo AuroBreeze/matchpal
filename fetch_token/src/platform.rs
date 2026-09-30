@@ -35,7 +35,7 @@ unsafe extern "system" {
 
 #[link(name = "msvcrt")]
 unsafe extern "system" {
-    /// 读一个键：不需要回车、不回显（回显的那个是 `_getche`）
+    /// 读一个键：不需要回车、不回显(回显的那个是 `_getche`)
     fn _getch() -> i32;
 }
 
@@ -54,7 +54,7 @@ pub fn console_would_vanish() -> bool {
 
 /// 阻塞等一个按键。
 ///
-/// 注意：stdin 被重定向成管道/文件时（比如 `echo x | fetch_token.exe`），
+/// 注意：stdin 被重定向成管道/文件时(比如 `echo x | fetch_token.exe`)，
 /// `_getch` 会退化成从 stdin 读一个字节，不再是"等按键"。
 pub fn wait_any_key() {
     unsafe {

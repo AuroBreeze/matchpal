@@ -6,8 +6,8 @@
 config.local.json
 capture/
 *.pem
-# 日志文件（logkit 文件 sink 的输出）
+# 日志文件(logkit 文件 sink 的输出)
 *.log
 
-# Tauri 生成的权限 schema（构建产物）
+# Tauri 生成的权限 schema(构建产物)
 matchpal-app/gen/

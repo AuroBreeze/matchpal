@@ -23,22 +23,22 @@ pub struct Args {
 const HELP: &str = "\
 fetch access_token
 
-  --port <端口>           本机监听端口（默认 8080）
-  --out <目录>            工作目录，放 CA 证书（默认 capture）
-  --write-config <文件>   命中后写入该文件（默认 config.local.json）
+  --port <端口>           本机监听端口(默认 8080)
+  --out <目录>            工作目录，放 CA 证书(默认 capture)
+  --write-config <文件>   命中后写入该文件(默认 config.local.json)
   --names <列表>          要捕获的字段名，逗号分隔
-  --hosts <域名列表>      在默认白名单之外再追加域名（逗号分隔）
-  --any-host              不限制域名（无关噪声较多：CSRF/资讯流 token 也会被写入）
-  --ca-store <machine|user> 证书装机器库（需管理员，默认）还是当前用户库
-  --timeout <秒>          最长运行时间（默认 300）
+  --hosts <域名列表>      在默认白名单之外再追加域名(逗号分隔)
+  --any-host              不限制域名(无关噪声较多：CSRF/资讯流 token 也会被写入)
+  --ca-store <machine|user> 证书装机器库(需管理员，默认)还是当前用户库
+  --timeout <秒>          最长运行时间(默认 300)
   --keep-going            命中后不退出，继续运行
-  --keep-ca               结束后保留根证书（默认卸载）
+  --keep-ca               结束后保留根证书(默认卸载)
   --log-all <文件>        把所有经过的请求 URL 记录到该文件
-  --log-level <级别>      trace/debug/info/warn/error/off（默认 info）
+  --log-level <级别>      trace/debug/info/warn/error/off(默认 info)
   --verbose               等价于 --log-level debug：打印所有经过的请求
-  --no-elevate            不自动提权（自己保证管理员权限）
+  --no-elevate            不自动提权(自己保证管理员权限)
   --pause [秒]            结束前留住窗口：不带值停 10 秒，带值停 N 秒，0 = 一直等到按键
-  --no-pause              结束就关窗口，不留（脚本/CI 用）
+  --no-pause              结束就关窗口，不留(脚本/CI 用)
   --help                  显示本帮助
 
 环境变量 FETCH_TOKEN_LOG 也能设置级别；双击运行时无法附加参数，可使用该环境变量。
@@ -130,17 +130,17 @@ pub fn parse_args() -> Args {
             }
             "--log-level" => {
                 let text = value(index);
-                // 下一个参数是别的旗标（或已经是最后一个参数）都算没给值：
+                // 下一个参数是别的旗标(或已经是最后一个参数)都算没给值：
                 // 否则会报「无法识别的日志级别：--no-pause」这种莫名其妙的错
                 if text.is_empty() || text.starts_with('-') {
-                    logkit::error!("--log-level 缺少级别（可选 trace/debug/info/warn/error/off）");
+                    logkit::error!("--log-level 缺少级别(可选 trace/debug/info/warn/error/off)");
                     pause::exit_with(2);
                 }
                 match Level::parse(&text) {
                     Some(level) => args.log_level = Some(level),
                     None => {
                         // 这里用 logkit 的 error 宏：级别还没生效，但 Error 永远打得出来
-                        logkit::error!("无法识别的日志级别：{text}（可选 trace/debug/info/warn/error/off）");
+                        logkit::error!("无法识别的日志级别：{text}(可选 trace/debug/info/warn/error/off)");
                         pause::exit_with(2);
                     }
                 }
@@ -152,7 +152,7 @@ pub fn parse_args() -> Args {
             }
             "--pause" => {
                 // 带值 `--pause 5`：最多停 5 秒；不带值 `--pause`：停默认 10 秒。
-                // 下一个参数不是数字就当作不带值（比如 `--pause --verbose`）。
+                // 下一个参数不是数字就当作不带值(比如 `--pause --verbose`)。
                 let seconds = argv.get(index + 1).and_then(|s| s.parse::<u64>().ok());
                 let pause = match seconds {
                     Some(0) => Pause::UntilKey,
@@ -172,7 +172,7 @@ pub fn parse_args() -> Args {
                 pause::exit_with(0);
             }
             other => {
-                logkit::error!("未知参数：{other}（使用 --help 查看用法）");
+                logkit::error!("未知参数：{other}(使用 --help 查看用法)");
                 pause::exit_with(2);
             }
         }
@@ -181,13 +181,13 @@ pub fn parse_args() -> Args {
 }
 
 // ---------------------------------------------------------------- 主机白名单
-/// 默认只认这些域名：完美世界竞技平台（wmpvp）+ Steam 系
+/// 默认只认这些域名：完美世界竞技平台(wmpvp)+ Steam 系
 ///
-/// `wmpvp.com` / `pwesports.cn` 是**实测的命中域名**（见仓库根 README 的抓取记录）：
+/// `wmpvp.com` / `pwesports.cn` 是**实测的命中域名**(见仓库根 README 的抓取记录)：
 /// `pwaweblogin.wmpvp.com` 下发/携带 `steam_cn_token`、`appactivity.wmpvp.com` 是对战接口、
 /// `gwapi.pwesports.cn` 把 token 挂在 URL 上。少了它们就是完全抓不到
 ///
-/// 另外这道闸也是防误收的：`assets.msn.cn`（Windows 小组件资讯流）会送来一个叫
+/// 另外这道闸也是防误收的：`assets.msn.cn`(Windows 小组件资讯流)会送来一个叫
 /// `userauthtoken` 的 JWT，落盘后还会被别名逻辑写成 `access_token`，下游拿着它请求必然失败
 pub fn default_hosts() -> Vec<String> {
     [

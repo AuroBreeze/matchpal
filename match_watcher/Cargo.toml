@@ -5,7 +5,7 @@ edition = "2024"
 description = "监听完美世界电竞当前对局：拿 matchId 与 10 人名单，可选合并战绩"
 
 [dependencies]
-# 分级日志（时间戳/级别过滤/颜色），与 fetch_token 共用一套
+# 分级日志(时间戳/级别过滤/颜色)，与 fetch_token 共用一套
 logkit = { path = "../logkit" }
 
 serde = { version = "1", features = ["derive"] }

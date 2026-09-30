@@ -2,7 +2,7 @@
 //!
 //! # 三个必须照抄的细节
 //!
-//! 1. **鉴权靠握手时的 Cookie**（`PVP_APP_TOKEN=<token>`），帧本身不含凭据。
+//! 1. **鉴权靠握手时的 Cookie**(`PVP_APP_TOKEN=<token>`)，帧本身不含凭据。
 //! 2. **读帧超时要自己设**。Python 版注释里专门记了这个坑：`websocket-client`
 //!    握手后会把 socket 重置成阻塞模式，不自己设超时 `recv()` 就永远挂着，
 //!    外层的 `--timeout` 根本检查不到。这里对应 [`Session::read_frame`] 返回
@@ -31,7 +31,7 @@ pub enum WsError {
     Connect(String),
     /// 连接被对端关掉
     Closed,
-    /// 协议层或 IO 错误（非超时）
+    /// 协议层或 IO 错误(非超时)
     Protocol(String),
 }
 
@@ -74,12 +74,12 @@ impl Session {
             .map_err(|err| WsError::Protocol(err.to_string()))
     }
 
-    /// 应用层心跳：文本 `ping`（不是 WebSocket 的 Ping 帧）
+    /// 应用层心跳：文本 `ping`(不是 WebSocket 的 Ping 帧)
     pub fn ping(&mut self) -> Result<(), WsError> {
         self.send_text("ping")
     }
 
-    /// 订阅自己的对局（`messageType` 10001）
+    /// 订阅自己的对局(`messageType` 10001)
     pub fn subscribe(&mut self, steamid: &str) -> Result<(), WsError> {
         self.send_text(&subscribe_payload(steamid))
     }
@@ -87,7 +87,7 @@ impl Session {
     /// 读一帧文本。
     ///
     /// - `Ok(Some(text))`：收到文本帧
-    /// - `Ok(None)`：这一轮没有应用层数据（读超时、Pong、二进制帧）
+    /// - `Ok(None)`：这一轮没有应用层数据(读超时、Pong、二进制帧)
     /// - `Err`：连接断了，调用方该重连
     pub fn read_frame(&mut self) -> Result<Option<String>, WsError> {
         match self.socket.read() {
@@ -109,7 +109,7 @@ impl Session {
         }
     }
 
-    /// 主动关闭（退出前收拾干净）
+    /// 主动关闭(退出前收拾干净)
     pub fn close(&mut self) {
         let _ = self.socket.close(None);
     }
@@ -118,7 +118,7 @@ impl Session {
 /// 给底层 socket 设读超时。
 ///
 /// `MaybeTlsStream` 标了 `#[non_exhaustive]`，所以必须有兜底分支 ——
-/// 将来 tungstenite 加了新 TLS 后端，这里会走兜底（不发超时），而不是编译不过。
+/// 将来 tungstenite 加了新 TLS 后端，这里会走兜底(不发超时)，而不是编译不过。
 fn set_stream_read_timeout(stream: &MaybeTlsStream<TcpStream>, timeout: Duration) -> std::io::Result<()> {
     match stream {
         MaybeTlsStream::Plain(tcp) => tcp.set_read_timeout(Some(timeout)),

@@ -1,13 +1,13 @@
 //! 退出前把控制台窗口留住
 //!
 //! 双击 exe 时，控制台是系统**为这个进程临时创建**的 —— 进程一退，窗口立刻消失，
-//! 用户根本看不到"命中 token / 写到哪个文件 / 为什么失败"。而从已有终端（cmd / pwsh /
-//! cargo run）启动时，控制台是复用的，窗口不会消失，这时平白多等 10 秒反而碍事
+//! 用户根本看不到"命中 token / 写到哪个文件 / 为什么失败"。而从已有终端(cmd / pwsh /
+//! cargo run)启动时，控制台是复用的，窗口不会消失，这时平白多等 10 秒反而碍事
 //!
 //! 所以默认值按"窗口会不会消失"自动选：
 //!
-//! - 独立控制台（双击 exe、ShellExecuteW runas 提权后新开的窗口）：停 10 秒，按键可提前关
-//! - 复用终端（cmd / pwsh / cargo run）：不停，保持脚本友好
+//! - 独立控制台(双击 exe、ShellExecuteW runas 提权后新开的窗口)：停 10 秒，按键可提前关
+//! - 复用终端(cmd / pwsh / cargo run)：不停，保持脚本友好
 //!
 //! 再用 `--pause [秒]` / `--no-pause` 显式覆盖
 
@@ -21,7 +21,7 @@ pub const DEFAULT_PAUSE_SECS: u64 = 10;
 pub enum Pause {
     /// 不停留，直接退出
     Off,
-    /// 一直等到按键（`--pause 0`）
+    /// 一直等到按键(`--pause 0`)
     UntilKey,
     /// 最多等 n 秒，按键可提前结束
     Secs(u64),
@@ -35,7 +35,7 @@ pub fn set(pause: Pause) {
     let _ = SETTING.set(pause);
 }
 
-/// 显式设置优先（`--pause` / `--no-pause`）；没设置过就按"窗口会不会消失"自动判断，
+/// 显式设置优先(`--pause` / `--no-pause`)；没设置过就按"窗口会不会消失"自动判断，
 /// 这样连 `--help`、非法参数这些解析期的早退路径也能对
 pub fn setting() -> Pause {
     match SETTING.get() {

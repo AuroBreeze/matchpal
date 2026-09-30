@@ -1,10 +1,10 @@
 //! access_token
 //!
 //! 执行流程:
-//!   1. 自动提权（ShellExecuteW runas，弹一次 UAC）
-//!   2. 运行时用 rcgen **现场生成一把自己的 CA**（每个用户各自一把，绝不分发私钥）
+//!   1. 自动提权(ShellExecuteW runas，弹一次 UAC)
+//!   2. 运行时用 rcgen **现场生成一把自己的 CA**(每个用户各自一把，绝不分发私钥)
 //!   3. 把 CA 装进根证书库(certutil)
-//!   4. 把系统代理临时指向本机监听端口（winreg + InternetSetOptionW 通知）
+//!   4. 把系统代理临时指向本机监听端口(winreg + InternetSetOptionW 通知)
 //!   5. hudsucker 拦截 HTTP/S，扫描 URL / 请求头 / Set-Cookie 里的 token
 //!   6. 命中 → 写 config.local.json → 还原系统代理 + 卸载证书
 //!
@@ -190,7 +190,7 @@ fn json_pairs(text: &str) -> Vec<(String, String)> {
     out
 }
 
-/// 按 Content-Type 解析 body 文本（表单 / JSON）。
+/// 按 Content-Type 解析 body 文本(表单 / JSON)。
 fn parse_text_pairs(content_type: &str, text: &str) -> Vec<(String, String)> {
     let content_type = content_type.to_ascii_lowercase();
     if content_type.contains("x-www-form-urlencoded") {
@@ -218,7 +218,7 @@ fn body_is_text_like(content_type: &str) -> bool {
 /// body 能不能安全地读出来
 ///
 /// - **必须自带 Content-Length**：没有长度的是 chunked / 流式 body。读它有两种坏结果 ——
-///   流式响应（SSE、长轮询）会把连接一直挂住；chunked 请求读完后 body 变成定长，
+///   流式响应(SSE、长轮询)会把连接一直挂住；chunked 请求读完后 body 变成定长，
 ///   与原有的 `Transfer-Encoding: chunked` 头对不上
 /// - **不超上限**：超过 512KB 的不是接口响应，而是文件下载
 fn body_is_readable(content_type: &str, content_length: Option<u64>) -> bool {
@@ -312,7 +312,7 @@ impl TokenHandler {
         {
             seen.push(line.clone());
         }
-        debug!("已忽略：{line}（主机不在白名单；请通过 --hosts 追加或使用 --any-host 取消限制）");
+        debug!("已忽略：{line}(主机不在白名单；请通过 --hosts 追加或使用 --any-host 取消限制)");
     }
 
     fn log_line(&self, line: &str) {
@@ -549,7 +549,7 @@ fn write_config(path: &Path, hit: &Hit, extras: &HashMap<String, String>) -> std
 // ---------------------------------------------------------------- 主流程
 #[tokio::main]
 async fn main() {
-    // 放在解析参数之前：解析期就可能报错（未知参数/未知级别），
+    // 放在解析参数之前：解析期就可能报错(未知参数/未知级别)，
     // 晚设的话那几条会带着模块路径，和后面的输出风格不一致。
     // 这个工具的每条消息都是自成一句话，模块路径纯属噪声。
     logkit::set_show_target(false);
@@ -595,20 +595,20 @@ async fn main() {
             }
         }
         // 不致命：只是 HTTPS 解不开，继续跑让用户自己决定
-        Err(err) => warn!("安装根证书失败（HTTPS 流量将无法解密）：{err}"),
+        Err(err) => warn!("安装根证书失败(HTTPS 流量将无法解密)：{err}"),
     }
 
     // ---- 设系统代理
     match proxy::set_system_proxy(args.port) {
         Ok(prev) => {
             info!(
-                "系统代理已临时指向 127.0.0.1:{}（原值 {}，退出时自动还原）",
+                "系统代理已临时指向 127.0.0.1:{}(原值 {}，退出时自动还原)",
                 args.port,
                 if prev.1.is_empty() { "未启用".into() } else { prev.1.clone() }
             );
             guard.proxy_prev = Some(prev);
         }
-        Err(err) => warn!("设置系统代理失败（请手动将系统代理指向 127.0.0.1:{}）：{err}", args.port),
+        Err(err) => warn!("设置系统代理失败(请手动将系统代理指向 127.0.0.1:{})：{err}", args.port),
     }
 
     // ---- 启动代理
@@ -660,9 +660,9 @@ async fn main() {
     };
 
     info!("本地代理已监听 http://127.0.0.1:{}", args.port);
-    info!("请在客户端中进行操作（登录或进入个人页面即可），命中 {} 后将自动完成并退出", args.names.join(", "));
+    info!("请在客户端中进行操作(登录或进入个人页面即可)，命中 {} 后将自动完成并退出", args.names.join(", "));
     if args.hosts.is_empty() {
-        warn!("注意：未限制域名（--any-host），CSRF、资讯流等无关的一次性 token 也可能被写入");
+        warn!("注意：未限制域名(--any-host)，CSRF、资讯流等无关的一次性 token 也可能被写入");
     } else {
         info!("仅接受以下域名的字段：{}", args.hosts.join(", "));
     }
@@ -683,13 +683,13 @@ async fn main() {
                 let Some(hit) = maybe_hit else { break };
                 let extras_map = extras.lock().map(|e| e.clone()).unwrap_or_default();
                 info!(
-                    "命中 token！来源：{}（{}）",
+                    "命中 token！来源：{}({})",
                     hit.url,
                     if hit.from_response { "响应侧" } else { "请求侧" }
                 );
                 for (key, value) in &hit.fields {
                     let masked = if value.len() > 10 {
-                        format!("{}…（{} 字符）", &value[..10], value.len())
+                        format!("{}…({} 字符)", &value[..10], value.len())
                     } else {
                         value.clone()
                     };
@@ -743,7 +743,7 @@ async fn main() {
 
     // 4 = 抓到了但没写成：跟"没抓到"分开，脚本能据此重试
     if write_failed {
-        error!("已捕获 token，但未能写入配置文件（见上方错误）");
+        error!("已捕获 token，但未能写入配置文件(见上方错误)");
         pause::exit_with(4);
     }
 
@@ -898,7 +898,7 @@ mod tests {
     }
 
     /// 回归：用仓库根 `config.local.json` 里那份**真实命中样本**的形状做验证
-    /// （`gwapi.pwesports.cn` + `steam_cn_token` + `steamid`）。
+    /// (`gwapi.pwesports.cn` + `steam_cn_token` + `steamid`)。
     /// 值和真实 token 无关，只保留等长十六进制形态。
     #[test]
     fn real_capture_sample_is_recognized() {

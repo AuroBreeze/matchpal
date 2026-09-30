@@ -2,14 +2,14 @@
 //!
 //! # 为什么把原始 JSON 一起留着
 //!
-//! 这是个**非官方接口**，字段类型会变（`pvpScore` 有时是数字有时是字符串，
-//! `headshot` 可能是 null）。Python 版靠鸭子类型天然容忍这些，Rust 要是一上来就
+//! 这是个**非官方接口**，字段类型会变(`pvpScore` 有时是数字有时是字符串，
+//! `headshot` 可能是 null)。Python 版靠鸭子类型天然容忍这些，Rust 要是一上来就
 //! 严格 `Deserialize` 成强类型，遇到一个意外类型就会**整帧解析失败、数据全丢**。
 //!
 //! 所以这里的策略是：
 //!
-//! - 帧原文用 [`serde_json::Value`] 原样留着（写快照、导出时按原样落盘）
-//! - 需要用到的地方走**宽容访问器**（数字/数字字符串都认，取不到给 `None`）
+//! - 帧原文用 [`serde_json::Value`] 原样留着(写快照、导出时按原样落盘)
+//! - 需要用到的地方走**宽容访问器**(数字/数字字符串都认，取不到给 `None`)
 //! - 只有渲染真正用得上的字段才抽成 [`Player`] 这种小视图
 
 use std::collections::BTreeMap;
@@ -19,7 +19,7 @@ use serde_json::Value;
 
 /// 订阅自己的对局
 pub const SUBSCRIBE_TYPE: i64 = 10001;
-/// 对局数据推送（只在你正在打对局时才推）
+/// 对局数据推送(只在你正在打对局时才推)
 pub const PUSH_TYPE: i64 = 10002;
 
 /// 一帧 10002 里的 `messageData`，原文原样保留
@@ -50,7 +50,7 @@ impl MatchInfo {
         self.text("map")
     }
 
-    /// 帧里叫 `type`（`skyladder` 之类），`type` 是 Rust 关键字所以访问器改名
+    /// 帧里叫 `type`(`skyladder` 之类)，`type` 是 Rust 关键字所以访问器改名
     pub fn kind(&self) -> Option<String> {
         self.text("type")
     }
@@ -80,7 +80,7 @@ impl MatchInfo {
             .unwrap_or_default()
     }
 
-    /// 按 CT / T 分组，顺带把认不出阵营的挑出来（Python 版是静默丢掉，这里留痕）
+    /// 按 CT / T 分组，顺带把认不出阵营的挑出来(Python 版是静默丢掉，这里留痕)
     pub fn teams(&self) -> Teams {
         split_teams(&self.players())
     }
@@ -177,7 +177,7 @@ pub fn split_teams(players: &[Player]) -> Teams {
 /// 战绩接口返回的每人数据，键是 SteamID64，值是原文
 pub type StatsMap = BTreeMap<String, Value>;
 
-/// 从战绩里取一个数值字段（数字 / 数字字符串都认）
+/// 从战绩里取一个数值字段(数字 / 数字字符串都认)
 pub fn stat_number(stats: &StatsMap, steamid: &str, key: &str) -> Option<f64> {
     stats.get(steamid)?.get(key).and_then(as_f64)
 }
@@ -237,14 +237,14 @@ impl PlayerStat {
         if self.anonymous {
             "匿名玩家".to_string()
         } else if self.nickname.trim().is_empty() {
-            "（无昵称）".to_string()
+            "(无昵称)".to_string()
         } else {
             self.nickname.clone()
         }
     }
 }
 
-/// 队伍汇总（`ctTeamDTO` / `tteamDTO`）
+/// 队伍汇总(`ctTeamDTO` / `tteamDTO`)
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TeamStat {
     pub rating_pro: Option<f64>,
@@ -286,12 +286,12 @@ pub struct StatsReport {
     pub t: Vec<PlayerStat>,
     pub ct_team: Option<TeamStat>,
     pub t_team: Option<TeamStat>,
-    /// 原文摊平后的映射（SteamID → 原文），导出用
+    /// 原文摊平后的映射(SteamID → 原文)，导出用
     pub raw: StatsMap,
 }
 
 impl StatsReport {
-    /// 从完整响应（`{"code":1,"result":{…}}`）解析
+    /// 从完整响应(`{"code":1,"result":{…}}`)解析
     pub fn from_value(value: &Value) -> StatsReport {
         let empty = serde_json::Map::new();
         let result = value.get("result").and_then(Value::as_object).unwrap_or(&empty);
@@ -334,7 +334,7 @@ impl StatsReport {
         self.players().find(|player| player.steamid == steamid)
     }
 
-    /// 这个 JSON 看起来是不是战绩接口的响应（而不是推送帧）
+    /// 这个 JSON 看起来是不是战绩接口的响应(而不是推送帧)
     pub fn looks_like_response(value: &Value) -> bool {
         let Some(result) = value.get("result") else { return false };
         ["ctPlayerStatsDTOList", "tplayerStatsDTOList", "tePlayerStatsDTOList"]
@@ -344,7 +344,7 @@ impl StatsReport {
 
     /// 从「摊平的 SteamID → 选手」映射建报告。
     ///
-    /// 用途是回放**快照文件**（`{captured_at, match, stats}`）—— 无论是 Python 版
+    /// 用途是回放**快照文件**(`{captured_at, match, stats}`)—— 无论是 Python 版
     /// 还是本工具写出来的都是这个形状，`stats` 里没有阵营，所以队伍要拿推送帧的
     /// `side` 去分。
     pub fn from_flat(stats: &Value, info: &MatchInfo) -> StatsReport {
@@ -367,7 +367,7 @@ impl StatsReport {
         report
     }
 
-    /// 快照形状的 `stats` 是否可用（键是 SteamID、值是选手对象）
+    /// 快照形状的 `stats` 是否可用(键是 SteamID、值是选手对象)
     pub fn flat_looks_usable(stats: &Value) -> bool {
         stats
             .as_object()
@@ -404,9 +404,9 @@ fn collect_stats(value: &Value) -> StatsMap {
 pub enum Frame {
     /// 对局数据推送
     Match(Box<MatchInfo>),
-    /// 别的 messageType（订阅回执之类）
+    /// 别的 messageType(订阅回执之类)
     Other(Option<i64>),
-    /// 不是 JSON（`pong`、心跳文本）
+    /// 不是 JSON(`pong`、心跳文本)
     NotJson,
 }
 
@@ -426,7 +426,7 @@ pub fn classify(text: &str) -> Frame {
     }
 }
 
-/// 订阅帧的 JSON 文本（发 10001）
+/// 订阅帧的 JSON 文本(发 10001)
 pub fn subscribe_payload(steamid: &str) -> String {
     serde_json::json!({
         "messageType": SUBSCRIBE_TYPE,
@@ -459,7 +459,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    /// 人造一帧，形状照抄真实推送（README 里的字段），但 SteamID 全是编的
+    /// 人造一帧，形状照抄真实推送(README 里的字段)，但 SteamID 全是编的
     fn sample_frame() -> String {
         json!({
             "messageType": PUSH_TYPE,
@@ -576,7 +576,7 @@ mod tests {
         assert_eq!(info.teams().total(), 0);
     }
 
-    /// 战绩响应的形状照抄真实返回（README 记过的那份），SteamID 与昵称都是编的
+    /// 战绩响应的形状照抄真实返回(README 记过的那份)，SteamID 与昵称都是编的
     fn sample_stats_response() -> Value {
         json!({
             "code": 1,
@@ -639,7 +639,7 @@ mod tests {
         // 导出用的原文映射按 SteamID 索引，两份名单都在里面
         assert_eq!(report.raw.len(), 2);
         assert!(report.raw.contains_key("76561198000000002"));
-        // 按 SteamID 反查（渲染"最高"时要用它换昵称）
+        // 按 SteamID 反查(渲染"最高"时要用它换昵称)
         assert_eq!(report.find("76561198000000002").unwrap().display_name(), "匿名玩家");
     }
 
@@ -649,7 +649,7 @@ mod tests {
         assert!(StatsReport::from_value(&json!({})).is_empty());
         assert!(StatsReport::from_value(&json!({"result": {}})).is_empty());
         assert!(StatsReport::from_value(&json!({"result": {"ctPlayerStatsDTOList": "不是数组"}})).is_empty());
-        // 缺 steamId 的人仍会出现在表格里（只是查不到人）
+        // 缺 steamId 的人仍会出现在表格里(只是查不到人)
         let report = StatsReport::from_value(&json!({"result": {"ctPlayerStatsDTOList": [{"nickname": "没有id"}]}}));
         assert_eq!(report.len(), 1);
         assert_eq!(report.ct[0].steamid, "");
@@ -682,12 +682,12 @@ mod tests {
     #[test]
     fn display_name_falls_back_instead_of_showing_nothing() {
         let mut player = PlayerStat::default();
-        assert_eq!(player.display_name(), "（无昵称）");
+        assert_eq!(player.display_name(), "(无昵称)");
         player.nickname = "  ".into();
-        assert_eq!(player.display_name(), "（无昵称）");
+        assert_eq!(player.display_name(), "(无昵称)");
         player.nickname = "名字".into();
         assert_eq!(player.display_name(), "名字");
-        // 匿名优先于昵称（服务端可能仍然塞了昵称）
+        // 匿名优先于昵称(服务端可能仍然塞了昵称)
         player.anonymous = true;
         assert_eq!(player.display_name(), "匿名玩家");
     }

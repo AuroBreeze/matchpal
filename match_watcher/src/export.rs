@@ -1,16 +1,16 @@
 //! 数据导出接口
 //!
 //! 一次导出的内容是这个 crate 对外的**唯一数据出口**：[`MatchSnapshot`]。
-//! 想接新去处（CSV、SQLite、HTTP 上报、消息队列、写回 matchpal 主程序…）
+//! 想接新去处(CSV、SQLite、HTTP 上报、消息队列、写回 matchpal 主程序…)
 //! 只需要：
 //!
 //! 1. 实现 [`Exporter`]；
 //! 2. 在 [`Exporters::parse_spec`] 里认领一个 `kind` 名字。
 //!
-//! 现有的两个实现是内建的：`json`（覆盖写一个文件，等价 Python 的 `--json-out`）
-//! 和 `ndjson`（追加一行一帧，方便下游 `tail -f` 流水线）。
+//! 现有的两个实现是内建的：`json`(覆盖写一个文件，等价 Python 的 `--json-out`)
+//! 和 `ndjson`(追加一行一帧，方便下游 `tail -f` 流水线)。
 //!
-//! 快照的字段名**刻意与 Python 版一致**（`captured_at` / `match` / `stats`），
+//! 快照的字段名**刻意与 Python 版一致**(`captured_at` / `match` / `stats`)，
 //! 因为下游可能已经在读这个形状了。
 
 use std::path::PathBuf;
@@ -61,10 +61,10 @@ impl std::fmt::Display for ExportError {
             ExportError::Io(err) => write!(f, "写文件失败：{err}"),
             ExportError::Json(err) => write!(f, "序列化失败：{err}"),
             ExportError::UnknownKind(kind) => {
-                write!(f, "无法识别的导出类型：{kind}（目前支持 json / ndjson）")
+                write!(f, "无法识别的导出类型：{kind}(目前支持 json / ndjson)")
             }
             ExportError::BadSpec(spec) => {
-                write!(f, "导出目标格式不正确：{spec}（应为 json:capture/match.json 的形式）")
+                write!(f, "导出目标格式不正确：{spec}(应为 json:capture/match.json 的形式)")
             }
             ExportError::Other(text) => write!(f, "{text}"),
         }
@@ -73,7 +73,7 @@ impl std::fmt::Display for ExportError {
 
 impl std::error::Error for ExportError {}
 
-/// 导出目标。同一个实例会被反复调用（每收到一帧调一次）。
+/// 导出目标。同一个实例会被反复调用(每收到一帧调一次)。
 pub trait Exporter {
     /// 类型名，日志里用来指认是谁失败了
     fn kind(&self) -> &'static str;
@@ -82,7 +82,7 @@ pub trait Exporter {
     fn export(&mut self, snapshot: &MatchSnapshot) -> Result<(), ExportError>;
 }
 
-/// 覆盖写一个 JSON 文件（等价 Python 的 `--json-out`）
+/// 覆盖写一个 JSON 文件(等价 Python 的 `--json-out`)
 pub struct JsonFile {
     path: PathBuf,
 }
@@ -104,7 +104,7 @@ impl Exporter for JsonFile {
     }
 }
 
-/// 追加一行一帧的 NDJSON（每帧一行，不覆盖历史）
+/// 追加一行一帧的 NDJSON(每帧一行，不覆盖历史)
 pub struct JsonLines {
     path: PathBuf,
 }
@@ -254,7 +254,7 @@ mod tests {
         assert!(matches!(Exporters::parse_spec("json"), Err(ExportError::BadSpec(_))));
         assert!(matches!(Exporters::parse_spec("json:   "), Err(ExportError::BadSpec(_))));
         assert!(matches!(Exporters::parse_spec("csv:x.csv"), Err(ExportError::UnknownKind(_))));
-        // 错误信息要能直接给人看（`Box<dyn Exporter>` 不是 Debug，不能用 unwrap_err）
+        // 错误信息要能直接给人看(`Box<dyn Exporter>` 不是 Debug，不能用 unwrap_err)
         let Err(err) = Exporters::parse_spec("csv:x.csv") else {
             panic!("csv 应该被拒绝");
         };

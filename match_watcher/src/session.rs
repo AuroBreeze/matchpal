@@ -4,9 +4,9 @@
 //! CLI 要"按老样子打日志"，GUI 要"拿到结构化的进度和表格"。
 //! 所以把循环搬进 lib，对外只发 [`WatcherEvent`]：
 //!
-//! - 结构化事件（[`WatcherEvent::Account`] / [`Connected`] / [`Progress`] /
-//!   [`Resubscribed`] / [`Report`]）给 GUI 渲染界面用；
-//! - 其余瞬时消息统一走 [`WatcherEvent::Notice`]（级别 + 现成文案），
+//! - 结构化事件([`WatcherEvent::Account`] / [`Connected`] / [`Progress`] /
+//!   [`Resubscribed`] / [`Report`])给 GUI 渲染界面用；
+//! - 其余瞬时消息统一走 [`WatcherEvent::Notice`](级别 + 现成文案)，
 //!   CLI 原样输出，GUI 挑着显示；
 //! - 循环内部**不做任何输出**，要不要打印、怎么打印全由消费者决定。
 //!
@@ -27,7 +27,7 @@ use crate::ws::{Session, PING_INTERVAL};
 
 /// 正常结束
 pub const EXIT_OK: i32 = 0;
-/// token 无效（调 getWebsocketInfo 失败）
+/// token 无效(调 getWebsocketInfo 失败)
 pub const EXIT_TOKEN_INVALID: i32 = 1;
 /// 跑完了但没收到对局推送。Python 版同样返回 1，这里分开命名只为可读
 pub const EXIT_NO_PUSH: i32 = 1;
@@ -49,7 +49,7 @@ pub enum WatcherEvent {
     Connected {
         full: usize,
     },
-    /// 名单进度（名单没攒够时每帧发一次）
+    /// 名单进度(名单没攒够时每帧发一次)
     Progress {
         loaded: usize,
         full: usize,
@@ -60,13 +60,13 @@ pub enum WatcherEvent {
         interval_secs: f64,
     },
     /// 瞬时消息：连接重试、心跳失败、超时、导出失败等。
-    /// `level` 是 logkit 级别名（info/warn/error/debug），
+    /// `level` 是 logkit 级别名(info/warn/error/debug)，
     /// `message` 是最终文案，消费者可以直接展示。
     Notice {
         level: &'static str,
         message: String,
     },
-    /// 一张渲染完成的表格（人满出表 / 超时兜底 / 回放）。
+    /// 一张渲染完成的表格(人满出表 / 超时兜底 / 回放)。
     /// `text` 是与 CLI 输出一致的成品，`data` 是结构化数据，消费者二选一。
     Report {
         text: String,
@@ -103,7 +103,7 @@ pub struct GuiReport {
     pub map: Option<String>,
     pub ct: Vec<GuiRow>,
     pub t: Vec<GuiRow>,
-    /// 阵营识别不出的玩家数（未计入 ct / t）
+    /// 阵营识别不出的玩家数(未计入 ct / t)
     pub unknown: usize,
 }
 
@@ -158,13 +158,13 @@ fn gui_rows_from_info(info: &MatchInfo) -> (Vec<GuiRow>, Vec<GuiRow>) {
 
 /// 监听会话的运行参数。字段与 CLI 一一对应，GUI 按需填。
 pub struct SessionOptions {
-    /// 名单人数达到这个数就出表并停止（默认 10）；0 = 不等满
+    /// 名单人数达到这个数就出表并停止(默认 10)；0 = 不等满
     pub full: usize,
-    /// 收到第一帧就出表（`--once`）
+    /// 收到第一帧就出表(`--once`)
     pub once: bool,
-    /// 出表后不退出，继续监听（`--keep-going`）
+    /// 出表后不退出，继续监听(`--keep-going`)
     pub keep_going: bool,
-    /// 最长运行时间（秒），0 为不限
+    /// 最长运行时间(秒)，0 为不限
     pub timeout: f64,
     /// 还没收到对局数据时，每隔这么多秒重新订阅一次，0 为关闭
     pub resubscribe: f64,
@@ -179,18 +179,18 @@ pub struct SessionOptions {
 /// 什么时候停下来出最终那张表
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Stop {
-    /// 名单人数够了（默认行为）
+    /// 名单人数够了(默认行为)
     WhenFull,
-    /// 收到第一帧就出（`--once`）
+    /// 收到第一帧就出(`--once`)
     AfterFirst,
-    /// 不出最终表，一直监听（`--keep-going`）
+    /// 不出最终表，一直监听(`--keep-going`)
     Never,
 }
 
 /// 运行一轮监听会话：取 ws 地址 → 连接 → 订阅 → 等名单满 → 出表。
 ///
 /// 阻塞直到会话结束，返回值与 CLI 退出码含义一致。
-/// token / steamid 的存在性检查由调用方负责（报错文案随调用场景不同）。
+/// token / steamid 的存在性检查由调用方负责(报错文案随调用场景不同)。
 pub fn run_session(
     credentials: &Credentials,
     platform: u32,
@@ -270,7 +270,7 @@ fn watch_loop(
             break EXIT_OK;
         }
 
-        // ---- 连接（含断线重连）
+        // ---- 连接(含断线重连)
         if session.is_none() {
             match Session::connect(ws_url, &credentials.token) {
                 Ok(mut ws) => {
@@ -304,7 +304,7 @@ fn watch_loop(
                     }
                     on_event(WatcherEvent::Notice {
                         level: "warn",
-                        message: format!("连接失败（{err}），3 秒后重试"),
+                        message: format!("连接失败({err})，3 秒后重试"),
                     });
                     std::thread::sleep(Duration::from_secs(3));
                     continue;
@@ -343,7 +343,7 @@ fn watch_loop(
             }
         }
 
-        // ---- 读一帧（读超时 = 这一轮没数据，不当作断开）
+        // ---- 读一帧(读超时 = 这一轮没数据，不当作断开)
         let outcome = session.as_mut().expect("同上").read_frame();
         let text = match outcome {
             Ok(None) => continue,
@@ -380,7 +380,7 @@ fn watch_loop(
         let loaded = info.players().len();
         last_info = Some((*info).clone());
 
-        // 名单还没攒够：报个进度继续等（这就是"人满才出表"的等待过程）
+        // 名单还没攒够：报个进度继续等(这就是"人满才出表"的等待过程)
         let full = opts.full == 0 || loaded >= opts.full;
         if !full && stop_at == Stop::WhenFull {
             on_event(WatcherEvent::Progress {
@@ -400,7 +400,7 @@ fn watch_loop(
     };
 
     if !got_push {
-        // 一帧都没收到：如果之前攒了半份名单，也出一张（人数不足会写明）
+        // 一帧都没收到：如果之前攒了半份名单，也出一张(人数不足会写明)
         if let Some(info) = last_info.take() {
             let loaded = info.players().len();
             on_event(WatcherEvent::Notice {
@@ -414,10 +414,10 @@ fn watch_loop(
         }
         on_event(WatcherEvent::Notice {
             level: "error",
-            message: "未收到对局推送（messageType 10002）。可能原因：\n  \
+            message: "未收到对局推送(messageType 10002)。可能原因：\n  \
                  · 当前不在对局中 —— 该推送仅在比赛进行期间出现\n  \
-                 · token 已失效（请重新运行 fetch_token）\n  \
-                 · steamid 不正确（须为 17 位 SteamID64，且为本账号）"
+                 · token 已失效(请重新运行 fetch_token)\n  \
+                 · steamid 不正确(须为 17 位 SteamID64，且为本账号)"
                 .into(),
         });
         on_event(WatcherEvent::Finished {
@@ -452,7 +452,7 @@ pub fn fetch_report(
             on_event(WatcherEvent::Notice {
                 level: "info",
                 message: format!(
-                    "战绩接口返回 {} 人的数据（CT {} / T {}）",
+                    "战绩接口返回 {} 人的数据(CT {} / T {})",
                     report.len(),
                     report.ct.len(),
                     report.t.len()
@@ -463,7 +463,7 @@ pub fn fetch_report(
         Err(err) => {
             on_event(WatcherEvent::Notice {
                 level: "warn",
-                message: format!("战绩接口调用失败（名单信息仍可查看）：{err}"),
+                message: format!("战绩接口调用失败(名单信息仍可查看)：{err}"),
             });
             StatsReport::default()
         }
@@ -494,7 +494,7 @@ pub fn emit_final(
     let (text, data) = if report.is_empty() {
         on_event(WatcherEvent::Notice {
             level: "warn",
-            message: "无战绩数据，回退为按 SteamID 显示的实时表格（昵称依赖战绩接口）".into(),
+            message: "无战绩数据，回退为按 SteamID 显示的实时表格(昵称依赖战绩接口)".into(),
         });
         let (ct, t) = gui_rows_from_info(info);
         (
@@ -507,7 +507,7 @@ pub fn emit_final(
             },
         )
     } else {
-        // 人数以推送帧为准（战绩接口只回它认识的），所以两个数字都传进去
+        // 人数以推送帧为准(战绩接口只回它认识的)，所以两个数字都传进去
         let shown = if loaded == 0 { report.len() } else { loaded };
         (
             render_report(Some(info), report, shown, expected),
@@ -525,7 +525,7 @@ pub fn emit_final(
     for (kind, err) in exporters.export_all(&snapshot) {
         on_event(WatcherEvent::Notice {
             level: "error",
-            message: format!("导出（{kind}）失败：{err}"),
+            message: format!("导出({kind})失败：{err}"),
         });
     }
 }

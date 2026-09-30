@@ -74,14 +74,14 @@ impl Drop for Guard {
     fn drop(&mut self) {
         if let Some((enable, server)) = self.proxy_prev.take() {
             match restore_system_proxy(enable, &server) {
-                Ok(()) => info!("系统代理已还原（原值 {}）", if server.is_empty() { "未启用".into() } else { server }),
+                Ok(()) => info!("系统代理已还原(原值 {})", if server.is_empty() { "未启用".into() } else { server }),
                 Err(err) => error!("还原系统代理失败：{err}"),
             }
         }
         if let Some((name, store)) = self.ca.take() {
             match uninstall_ca(&store, &name) {
                 Ok(()) => info!("根证书已卸载"),
-                Err(err) => error!("卸载根证书失败（可手动 certutil -delstore Root \"{name}\"）：{err}"),
+                Err(err) => error!("卸载根证书失败(可手动 certutil -delstore Root \"{name}\")：{err}"),
             }
         }
     }

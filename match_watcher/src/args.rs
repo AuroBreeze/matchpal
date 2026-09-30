@@ -10,7 +10,7 @@ use logkit::Level;
 
 /// 抓到并处理完一帧
 pub const EXIT_OK: i32 = 0;
-/// token 无效（调 getWebsocketInfo 失败）
+/// token 无效(调 getWebsocketInfo 失败)
 pub const EXIT_TOKEN_INVALID: i32 = 1;
 /// 配置/参数不对
 pub const EXIT_ARGS: i32 = 2;
@@ -26,9 +26,9 @@ pub struct Args {
     pub platform: u32,
     pub once: bool,
     pub stats: bool,
-    /// 名单人数达到这个数就出表并停止（默认 10）；0 = 不等满
+    /// 名单人数达到这个数就出表并停止(默认 10)；0 = 不等满
     pub full: usize,
-    /// 出表后不退出，继续监听（Python 版的持续模式）
+    /// 出表后不退出，继续监听(Python 版的持续模式)
     pub keep_going: bool,
     pub timeout: f64,
     /// `None` = 不写快照
@@ -70,23 +70,23 @@ impl Default for Args {
 const HELP: &str = "\
 监听完美世界电竞当前对局：获取 matchId 与 10 人名单，可选合并战绩
 
-  --config <文件>      token 与 steamid 的配置文件（默认 config.local.json）
+  --config <文件>      token 与 steamid 的配置文件(默认 config.local.json)
   --token <token>      覆盖配置文件中的 access_token
-  --steamid <id>       覆盖配置文件中的 steamid（17 位 SteamID64）
-  --platform <编号>    平台编号（默认 2）
-  --once               收到第一帧即退出（不等待名单满员，调试用）
-  --full <人数>        名单达到该人数即输出战绩表并停止（默认 10，0 = 不限制）
-  --keep-going         输出表格后不退出，继续监听（持续模式）
-  --stats              额外将战绩并入表格（人满出表时已默认查询；用于 --once / 持续模式）
-  --timeout <秒>       最长运行时间，0 为不限（默认 0）
-  --json-out <文件>    快照写入路径（默认 capture/match_snapshot.json）
+  --steamid <id>       覆盖配置文件中的 steamid(17 位 SteamID64)
+  --platform <编号>    平台编号(默认 2)
+  --once               收到第一帧即退出(不等待名单满员，调试用)
+  --full <人数>        名单达到该人数即输出战绩表并停止(默认 10，0 = 不限制)
+  --keep-going         输出表格后不退出，继续监听(持续模式)
+  --stats              额外将战绩并入表格(人满出表时已默认查询；用于 --once / 持续模式)
+  --timeout <秒>       最长运行时间，0 为不限(默认 0)
+  --json-out <文件>    快照写入路径(默认 capture/match_snapshot.json)
   --no-json-out        不写快照文件
   --export <写法>      追加导出目标，形如 json:文件 或 ndjson:文件；可重复
-  --resubscribe <秒>   未收到对局数据时，每隔该秒数重新订阅一次，0 为关闭（默认 15）
-  --retries <次数>     断线/连接失败的重试次数（默认 5）
-  --check              仅校验 token 是否有效（有效 0 / 无效 1）
-  --replay <文件>      离线回放已保存的推送帧（不连接 WebSocket）
-  --log-level <级别>   trace/debug/info/warn/error/off（默认 info）
+  --resubscribe <秒>   未收到对局数据时，每隔该秒数重新订阅一次，0 为关闭(默认 15)
+  --retries <次数>     断线/连接失败的重试次数(默认 5)
+  --check              仅校验 token 是否有效(有效 0 / 无效 1)
+  --replay <文件>      离线回放已保存的推送帧(不连接 WebSocket)
+  --log-level <级别>   trace/debug/info/warn/error/off(默认 info)
   --verbose            等价于 --log-level debug：打印所有 WS 帧
   --help               显示本帮助
 
@@ -96,10 +96,10 @@ const HELP: &str = "\
   0 正常结束          1 token 无效 / 未收到对局推送
   2 配置或参数错误
 
-导出目标（--export）：
+导出目标(--export)：
   json:<文件>          覆盖写，一帧一份完整 JSON
   ndjson:<文件>        追加，一帧一行，便于下游 tail
-  Windows 盘符中的冒号不会被切坏（仅按第一个冒号切分）。
+  Windows 盘符中的冒号不会被切坏(仅按第一个冒号切分)。
 ";
 
 /// 解析结果
@@ -120,7 +120,7 @@ pub fn parse_args() -> Args {
             std::process::exit(EXIT_OK);
         }
         Err(ParseError::Message(text)) => {
-            logkit::error!("{text}（使用 --help 查看用法）");
+            logkit::error!("{text}(使用 --help 查看用法)");
             std::process::exit(EXIT_ARGS);
         }
     }
@@ -186,7 +186,7 @@ pub fn parse(argv: &[String]) -> Result<Args, ParseError> {
             "--export" => {
                 let spec = value(index);
                 if spec.is_empty() {
-                    return Err(ParseError::Message("--export 缺少写法（形如 json:文件）".into()));
+                    return Err(ParseError::Message("--export 缺少写法(形如 json:文件)".into()));
                 }
                 args.exports.push(spec);
                 index += 2;
@@ -220,14 +220,14 @@ pub fn parse(argv: &[String]) -> Result<Args, ParseError> {
                 let text = value(index);
                 if text.is_empty() || text.starts_with('-') {
                     return Err(ParseError::Message(
-                        "--log-level 缺少级别（可选 trace/debug/info/warn/error/off）".into(),
+                        "--log-level 缺少级别(可选 trace/debug/info/warn/error/off)".into(),
                     ));
                 }
                 match Level::parse(&text) {
                     Some(level) => args.log_level = Some(level),
                     None => {
                         return Err(ParseError::Message(format!(
-                            "无法识别的日志级别：{text}（可选 trace/debug/info/warn/error/off）"
+                            "无法识别的日志级别：{text}(可选 trace/debug/info/warn/error/off)"
                         )));
                     }
                 }
@@ -345,7 +345,7 @@ mod tests {
         assert!(matches!(parse(&argv), Err(ParseError::Help)));
     }
 
-    /// 中文参数值不能被拆坏（配置文件名、回放路径都可能带中文）
+    /// 中文参数值不能被拆坏(配置文件名、回放路径都可能带中文)
     #[test]
     fn accepts_non_ascii_values() {
         let args = parse_ok(&["--replay", "抓包/推送样本.json", "--config", "配置.json"]);

@@ -1,15 +1,15 @@
-//! 完美世界电竞对局接口（`appactivity.wmpvp.com`）
+//! 完美世界电竞对局接口(`appactivity.wmpvp.com`)
 //!
-//! 请求头按抓包复刻（Android WebView / EsportsApp 4.1.2.218）。
+//! 请求头按抓包复刻(Android WebView / EsportsApp 4.1.2.218)。
 //!
 //! # 关于 TLS
 //!
-//! 走 `native-tls`（Windows 上是 schannel，读 **Windows 证书库**），
+//! 走 `native-tls`(Windows 上是 schannel，读 **Windows 证书库**)，
 //! 所以本机装着中间人 CA 时能直接过 —— **不需要** Python 版那个
 //! 「先正常校验，`SSLError` 就降级成不校验」的兜底。那种降级会静默关掉
 //! 证书校验，等于对任何中间人都放行，能不要就不要。
 //!
-//! 注意 ureq 3 的 crate 级便捷函数（`ureq::get`）**不会**用 native-tls，
+//! 注意 ureq 3 的 crate 级便捷函数(`ureq::get`)**不会**用 native-tls，
 //! 必须在 `Agent` 上显式配 `TlsProvider::NativeTls`。
 
 use std::time::Duration;
@@ -41,7 +41,7 @@ pub enum ApiError {
     Transport(String),
     /// HTTP 状态码不是 2xx
     Status { code: u16, body: String },
-    /// 通了但业务码不是成功值（token 过期/参数不对都会走这里）
+    /// 通了但业务码不是成功值(token 过期/参数不对都会走这里)
     Business { code: String, message: String },
     /// 响应不是合法 JSON
     Json(serde_json::Error),
@@ -62,8 +62,8 @@ impl std::fmt::Display for ApiError {
 
 impl std::error::Error for ApiError {}
 
-/// 一个新的接口客户端。`token` 必填，`steamid` 可为空（只有带 steamid 的
-/// 请求才会发 `pwasteamid` 头）。
+/// 一个新的接口客户端。`token` 必填，`steamid` 可为空(只有带 steamid 的
+/// 请求才会发 `pwasteamid` 头)。
 pub struct Api {
     agent: ureq::Agent,
     token: String,
@@ -170,7 +170,7 @@ fn read_json(result: Result<ureq::http::Response<ureq::Body>, ureq::Error>) -> R
     serde_json::from_str(&text).map_err(ApiError::Json)
 }
 
-/// 业务码必须等于 1（`{"code":1,"message":"success",…}`）
+/// 业务码必须等于 1(`{"code":1,"message":"success",…}`)
 fn ensure_success(value: &Value) -> Result<(), ApiError> {
     if value.get("code").and_then(Value::as_i64) == Some(1) {
         return Ok(());
@@ -237,7 +237,7 @@ mod tests {
 
     #[test]
     fn pwasteamid_only_when_steamid_is_known() {
-        // token 校验那一步（run_all 的 --check）是拿 steamid="0" 或空串发的
+        // token 校验那一步(run_all 的 --check)是拿 steamid="0" 或空串发的
         assert_eq!(header_of(&api("76561198000000000").headers(), "pwasteamid"), Some("76561198000000000"));
         assert_eq!(header_of(&api("").headers(), "pwasteamid"), None);
     }
