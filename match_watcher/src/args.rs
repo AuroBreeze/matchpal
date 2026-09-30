@@ -41,6 +41,8 @@ pub struct Args {
     pub replay: Option<PathBuf>,
     pub verbose: bool,
     pub log_level: Option<Level>,
+    /// WS 推送后端端口；0 = 关闭
+    pub push_port: u16,
 }
 
 impl Default for Args {
@@ -63,6 +65,7 @@ impl Default for Args {
             replay: None,
             verbose: false,
             log_level: None,
+            push_port: 8788,
         }
     }
 }
@@ -86,6 +89,8 @@ const HELP: &str = "\
   --retries <次数>     断线/连接失败的重试次数(默认 5)
   --check              仅校验 token 是否有效(有效 0 / 无效 1)
   --replay <文件>      离线回放已保存的推送帧(不连接 WebSocket)
+  --push-port <端口>   WS 推送后端端口(默认 8788，0 = 关闭)：
+                       客户端连上 ws://127.0.0.1:<端口> 即可收到事件流
   --log-level <级别>   trace/debug/info/warn/error/off(默认 info)
   --verbose            等价于 --log-level debug：打印所有 WS 帧
   --help               显示本帮助
@@ -197,6 +202,10 @@ pub fn parse(argv: &[String]) -> Result<Args, ParseError> {
             }
             "--retries" => {
                 args.retries = parse_number(&value(index), "--retries")?;
+                index += 2;
+            }
+            "--push-port" => {
+                args.push_port = parse_number(&value(index), "--push-port")?;
                 index += 2;
             }
             "--check" => {

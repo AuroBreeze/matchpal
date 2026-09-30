@@ -174,6 +174,8 @@ pub struct SessionOptions {
     pub exporters: Exporters,
     /// 外部停止信号。GUI 传一个 `AtomicBool`，置 true 后会话在下一圈退出；CLI 传 `None`
     pub stop: Option<Arc<AtomicBool>>,
+    /// WS 推送后端。Some 时每个事件序列化成 JSON 广播给已连接的客户端
+    pub push: Option<crate::push::PushHub>,
 }
 
 /// 什么时候停下来出最终那张表
@@ -194,11 +196,23 @@ enum Stop {
 pub fn run_session(
     credentials: &Credentials,
     platform: u32,
-    opts: SessionOptions,
+    mut opts: SessionOptions,
     on_event: &mut dyn FnMut(WatcherEvent),
 ) -> i32 {
+    // WS 后端：每个事件先序列化广播给已连接的客户端，再交给本地消费者。
+    // 客户端拿到的事件与 CLI 打印的是同一份，不另起一套协议。
+    let push = opts.push.take();
+    let mut emit = move |event: WatcherEvent| {
+        if let Some(hub) = &push
+            && let Ok(text) = serde_json::to_string(&event)
+        {
+            hub.broadcast(text);
+        }
+        on_event(event);
+    };
+
     let api = Api::new(credentials.token.clone(), credentials.steamid.clone());
-    on_event(WatcherEvent::Account {
+    emit(WatcherEvent::Account {
         steamid: credentials.steamid.clone(),
         masked_token: credentials.masked_token(),
         token_len: credentials.token.len(),
@@ -207,25 +221,25 @@ pub fn run_session(
     let ws_url = match api.websocket_url(platform) {
         Ok(url) => url,
         Err(err) => {
-            on_event(WatcherEvent::Notice {
+            emit(WatcherEvent::Notice {
                 level: "error",
                 message: format!("获取 websocketUrl 失败：{err}"),
             });
             return EXIT_TOKEN_INVALID;
         }
     };
-    on_event(WatcherEvent::Notice {
+    emit(WatcherEvent::Notice {
         level: "info",
         message: format!("WebSocket: {ws_url}"),
     });
     if !opts.exporters.is_empty() {
-        on_event(WatcherEvent::Notice {
+        emit(WatcherEvent::Notice {
             level: "info",
             message: format!("导出目标：{}", opts.exporters.kinds().join(", ")),
         });
     }
 
-    watch_loop(credentials, &api, &ws_url, opts, on_event)
+    watch_loop(credentials, &api, &ws_url, opts, &mut emit)
 }
 
 /// 主循环：连接 → 订阅 → 等名单满 → 出战绩表 → 停止

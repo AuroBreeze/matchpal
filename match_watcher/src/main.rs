@@ -32,6 +32,7 @@ use match_watcher::api::Api;
 use match_watcher::config::{self, Credentials};
 use match_watcher::export::{Exporters, JsonFile};
 use match_watcher::model::{MatchInfo, StatsReport};
+use match_watcher::push::PushHub;
 use match_watcher::session::{self, emit_final, fetch_report, SessionOptions, WatcherEvent};
 
 use crate::args::{Args, EXIT_ARGS, EXIT_OK, EXIT_TOKEN_INVALID};
@@ -90,7 +91,24 @@ fn run(args: &Args) -> i32 {
         }
     };
 
-    watch(args, &credentials, exporters)
+    // ---- WS 推送后端：把事件流当作后端数据推给已连接的客户端
+    let push = if args.push_port > 0 {
+        match match_watcher::push::PushHub::spawn(args.push_port) {
+            Ok((hub, port)) => {
+                info!("WS 推送后端已就绪：ws://127.0.0.1:{port}(客户端连上即收事件流，--push-port 0 可关闭)");
+                Some(hub)
+            }
+            Err(err) => {
+                // 不致命：端口被占只是少一路推送，本地输出照旧
+                warn!("WS 推送后端启动失败({err})；仅本地输出，不推送");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    watch(args, &credentials, exporters, push)
 }
 
 /// `--check` 只说明"接口通不通"。
@@ -144,7 +162,7 @@ fn handle_event(event: WatcherEvent) {
 }
 
 /// CLI 侧的监听入口：参数搬进 SessionOptions，交给 lib 的事件会话
-fn watch(args: &Args, credentials: &Credentials, exporters: Exporters) -> i32 {
+fn watch(args: &Args, credentials: &Credentials, exporters: Exporters, push: Option<PushHub>) -> i32 {
     session::run_session(
         credentials,
         args.platform,
@@ -157,6 +175,7 @@ fn watch(args: &Args, credentials: &Credentials, exporters: Exporters) -> i32 {
             retries: args.retries,
             exporters,
             stop: None,
+            push,
         },
         &mut handle_event,
     )
