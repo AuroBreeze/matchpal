@@ -24,10 +24,9 @@
 
 | 成员 | 说明 |
 | --- | --- |
-| `fetch_token` | 本地代理工具，从完美世界客户端流量中捕获 access_token，生成配置文件 |
-| `match_watcher` | 主程序：订阅对局推送，等名单满员，查询战绩并渲染表格 |
+| `fetch_token` | 本地代理工具，从完美世界客户端流量中捕获 access_token，生成配置文件；内置 WS 推送后端 |
+| `match_watcher` | 主程序：订阅对局推送，等名单满员，查询战绩并渲染表格；内置 WS 推送后端 |
 | `logkit` | 两个程序共用的分级日志库(时间戳、级别过滤、颜色、文件输出) |
-| `matchpal-app` | 桌面端(开发中)：Tauri 壳，复用 `match_watcher` 的 lib 与事件流；`fetch_token` 不进其进程，保持独立 |
 
 构建要求：Rust 1.85 及以上(edition 2024)，Windows 10/11。
 
@@ -72,6 +71,7 @@ cargo run -p match_watcher --release
 | `--timeout <秒>` | 最长等待时间(默认 300) |
 | `--keep-ca` | 退出时保留根证书(默认卸载) |
 | `--log-all <文件>` | 记录所有经过的请求 URL，用于排查抓取失败 |
+| `--push-port <端口>` | WS 推送后端端口(默认 8787，`0` 关闭)，见下文「作为后端使用」 |
 | `--no-pause` | 结束后不留窗(脚本 / CI 使用) |
 
 退出码：`0` 捕获并写入 · `1` 超时未命中 · `2` 环境或参数错误 · `3` 提权被拒绝 · `4` 捕获成功但写入失败。
@@ -105,6 +105,7 @@ stdout 与 stderr 有意分离：表格是产品输出，可重定向或进入�
 | `--resubscribe <秒>` | 未收到推送时重新订阅的间隔(默认 15，`0` 关闭) |
 | `--retries <次数>` | 断线重连次数(默认 5) |
 | `--replay <文件>` | 离线回放推送帧或战绩响应，不连接网络 |
+| `--push-port <端口>` | WS 推送后端端口(默认 8788，`0` 关闭)，见下文「作为后端使用」 |
 | `--log-level <级别>` | trace / debug / info / warn / error / off |
 
 退出码：`0` 正常结束 · `1` token 无效或未收到对局推送 · `2` 配置或参数错误。
@@ -113,6 +114,47 @@ stdout 与 stderr 有意分离：表格是产品输出，可重定向或进入�
 
 ```bash
 cargo run -p match_watcher --release -- --replay match_watcher/src/testdata/stats_response.json
+```
+
+## 作为后端使用(WS 推送)
+
+两个程序都内置本地 WebSocket 推送服务，可以当作后端供 GUI / 前端消费，
+不必轮询文件或解析 stdout。服务只监听 `127.0.0.1`，不对外网暴露；
+单向推送，客户端发来的帧一律忽略。
+
+| 服务 | 默认地址 | 关闭方式 | 内容 |
+| --- | --- | --- | --- |
+| fetch_token | `ws://127.0.0.1:8787` | `--push-port 0` | token 捕获结果 |
+| match_watcher | `ws://127.0.0.1:8788` | `--push-port 0` | 对局监听事件流 |
+
+fetch_token 协议(服务端 → 客户端的单行 JSON 文本帧)：
+
+```text
+连上即推   {"type":"hello","service":"fetch_token","push_port":8787}
+命中写盘   {"type":"captured","config":{...与 config.local.json 完全相同...}}
+超时未命中 {"type":"timeout"}
+```
+
+match_watcher 协议：连上先收 `hello`(带 `service: "match_watcher"`)，
+之后是完整的监听事件流，形态为 `{"type":<事件名>,"data":{...}}`：
+
+| 事件 | 说明 |
+| --- | --- |
+| `Connected` | WebSocket 已连接并完成订阅 |
+| `Progress` | 名单进度(`loaded` / `full`) |
+| `Resubscribed` | 尚未收到对局数据，重新订阅 |
+| `Notice` | 诊断消息(`level` + 现成文案) |
+| `Report` | 最终表格：`text` 为 CLI 同款文本，`data` 为结构化两队数据 |
+| `Finished` | 会话结束，`code` 与 CLI 退出码一致 |
+
+前端接入示例(浏览器 / Node 通用)：
+
+```js
+const ws = new WebSocket("ws://127.0.0.1:8788");
+ws.onmessage = (e) => {
+  const event = JSON.parse(e.data);
+  if (event.type === "Report") render(event.data.data);   // 结构化两队数据
+};
 ```
 
 ## 配置文件
@@ -154,3 +196,7 @@ cargo test --workspace
 - CA 证书每次运行现场生成、正常退出即卸载；私钥不落盘分发。
 - `config.local.json`(明文 token)与 `capture/`(CA 证书、抓包日志、快照)均在 `.gitignore` 中，其中的 URL 与快照可能直接包含 token，请勿提交或外发。
 - 本项目为个人工具，接口自抓包实测还原，平台协议变更可能导致功能失效。
+
+## 许可证
+
+GPLv3，见仓库根 `LICENSE`。
