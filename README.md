@@ -4,8 +4,8 @@
 
 基于完美世界电竞平台官方接口实现，本地运行，Rust 编写，无运行时依赖。
 
-> 面向开发者的实现细节——token 抓取原理、观将台协议链路、坑清单——见
-> [DEVELOPMENT.md](DEVELOPMENT.md)。
+> token 与观将台数据链路是怎么逆向出来的——采集、归因与验证的完整过程——见
+> [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md)。
 
 ## 定位
 
