@@ -145,6 +145,7 @@ match_watcher 协议：连上先收 `hello`(带 `service: "match_watcher"`)，
 | `Resubscribed` | 尚未收到对局数据，重新订阅 |
 | `Notice` | 诊断消息(`level` + 现成文案) |
 | `Report` | 最终表格：`text` 为 CLI 同款文本，`data` 为结构化两队数据 |
+| `Raw` | 原始 JSON:`source` 为 `push_frame`(对局推送帧)或 `stats_response`(战绩接口响应)，`payload` 为未加工数据 |
 | `Finished` | 会话结束，`code` 与 CLI 退出码一致 |
 
 前端接入示例(浏览器 / Node 通用)：

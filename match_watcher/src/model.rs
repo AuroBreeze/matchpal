@@ -288,6 +288,8 @@ pub struct StatsReport {
     pub t_team: Option<TeamStat>,
     /// 原文摊平后的映射(SteamID → 原文)，导出用
     pub raw: StatsMap,
+    /// 战绩接口的**原始响应**(未加工)。回放快照等非完整响应来源时为 Null
+    pub raw_response: Value,
 }
 
 impl StatsReport {
@@ -315,6 +317,7 @@ impl StatsReport {
             ct_team: result.get("ctTeamDTO").map(TeamStat::from_value),
             t_team: result.get("tteamDTO").map(TeamStat::from_value),
             raw: collect_stats(value),
+            raw_response: value.clone(),
         }
     }
 

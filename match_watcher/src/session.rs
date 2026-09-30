@@ -72,6 +72,14 @@ pub enum WatcherEvent {
         text: String,
         data: GuiReport,
     },
+    /// 原始 JSON 数据，未经任何加工：
+    /// - `source = "push_frame"`：对局推送帧(messageType 10002 的完整信封)
+    /// - `source = "stats_response"`：战绩接口的原始响应
+    /// 每收到一份就推一次，与 [`WatcherEvent::Report`] 的加工数据并存。
+    Raw {
+        source: &'static str,
+        payload: serde_json::Value,
+    },
     /// 会话结束，`code` 与 CLI 退出码含义一致
     Finished {
         code: i32,
@@ -394,6 +402,14 @@ fn watch_loop(
         let loaded = info.players().len();
         last_info = Some((*info).clone());
 
+        // 原始推送帧：原样透传给 WS 客户端，不做过任何字段挑选
+        if let Ok(payload) = serde_json::from_str::<serde_json::Value>(&text) {
+            on_event(WatcherEvent::Raw {
+                source: "push_frame",
+                payload,
+            });
+        }
+
         // 名单还没攒够：报个进度继续等(这就是"人满才出表"的等待过程)
         let full = opts.full == 0 || loaded >= opts.full;
         if !full && stop_at == Stop::WhenFull {
@@ -536,6 +552,13 @@ pub fn emit_final(
     on_event(WatcherEvent::Report { text, data });
 
     let snapshot = MatchSnapshot::now(info.clone(), report.raw.clone());
+    // 战绩接口的原始响应同样原样透传(非完整响应来源时是 Null，跳过)
+    if !report.raw_response.is_null() {
+        on_event(WatcherEvent::Raw {
+            source: "stats_response",
+            payload: report.raw_response.clone(),
+        });
+    }
     for (kind, err) in exporters.export_all(&snapshot) {
         on_event(WatcherEvent::Notice {
             level: "error",

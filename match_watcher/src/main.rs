@@ -157,6 +157,11 @@ fn handle_event(event: WatcherEvent) {
             _ => info!("{message}"),
         },
         WatcherEvent::Report { text, .. } => print!("{text}"),
+        // 原始 JSON 只走 WS 推送；CLI 侧在 debug 级别提一行来源即可
+        WatcherEvent::Raw { source, payload } => {
+            let preview: String = payload.to_string().chars().take(120).collect();
+            debug!("原始数据({source})：{preview}");
+        }
         WatcherEvent::Finished { .. } => {}
     }
 }
