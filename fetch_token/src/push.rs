@@ -8,7 +8,7 @@
 //! 这是单向推送通道）：
 //!
 //! ```text
-//! 连上即推   {"type":"hello","push_port":8787}
+//! 连上即推   {"type":"hello","service":"fetch","push_port":8787}
 //! 命中写盘   {"type":"captured","config":{...与 config.local.json 相同...}}
 //! 超时未命中 {"type":"timeout"}
 //! ```
@@ -38,7 +38,7 @@ impl PushHub {
         let listener = TcpListener::bind(("127.0.0.1", port))?;
         let actual = listener.local_addr()?.port();
         let (tx, _) = broadcast::channel(16);
-        let greeting = format!("{{\"type\":\"hello\",\"push_port\":{actual}}}");
+        let greeting = format!("{{\"type\":\"hello\",\"service\":\"fetch_token\",\"push_port\":{actual}}}");;
         let tx_thread = tx.clone();
         std::thread::spawn(move || accept_loop(listener, tx_thread, greeting));
         Ok((Self { tx }, actual))
