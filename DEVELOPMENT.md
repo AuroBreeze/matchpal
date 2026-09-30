@@ -9,15 +9,20 @@
 
 ## 总览
 
-```text
-fetch_token(抓一次，token 过期前有效)          match_watcher(每局运行)
-┌────────────────────────────────┐         ┌──────────────────────────────────┐
-│ MITM 代理拦截客户端 HTTPS 流量    │         │ 1. GET  getWebsocketInfo → wss 地址│
-│ 命中 token 字段 →                │──写入──▶ │ 2. WS   订阅自己的对局            │
-│ config.local.json               │  同一份  │ 3. 等   messageType 10002 推送    │
-│ + WS 推送给已连接的客户端         │  JSON   │ 4. POST 查询战绩接口              │
-└────────────────────────────────┘         │ 5. 渲染表格 / 导出 / WS 推送       │
-                                           └──────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph FT["fetch_token(抓一次,token 过期前有效)"]
+        A["拦截客户端 HTTPS 流量"] --> B["扫描 token 字段"]
+        B --> C["命中:写入 config.local.json"]
+        C --> D["WS 推送 captured 事件"]
+    end
+    subgraph MW["match_watcher(每局运行)"]
+        E["GET getWebsocketInfo → wss 地址"] --> F["WS 订阅自己的对局"]
+        F --> G["等 10002 推送,名单满 10 人"]
+        G --> H["POST 查询战绩接口"]
+        H --> I["渲染表格 / 导出 / WS 推送"]
+    end
+    C -- "access_token + steamid" --> E
 ```
 
 - token 抓取:`fetch_token/src/main.rs`(拦截与扫描)、`ca.rs`(证书)、
