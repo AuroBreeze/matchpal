@@ -148,6 +148,55 @@ match_watcher 协议：连上先收 `hello`(带 `service: "match_watcher"`)，
 | `Raw` | 原始 JSON:`source` 为 `push_frame`(对局推送帧)或 `stats_response`(战绩接口响应)，`payload` 为未加工数据 |
 | `Finished` | 会话结束，`code` 与 CLI 退出码一致 |
 
+各事件的示例帧(省略号表示实际内容更长)：
+
+```jsonc
+// hello —— 连上即推
+{"type":"hello","service":"match_watcher","push_port":8788}
+
+// Connected —— WebSocket 已连接并完成订阅
+{"type":"Connected","data":{"full":10}}
+
+// Progress —— 每收到一帧推送就报一次名单进度
+{"type":"Progress","data":{"loaded":3,"full":10}}
+
+// Resubscribed —— 超过间隔还没收到对局数据，重新订阅
+{"type":"Resubscribed","data":{"waited_secs":15.2,"interval_secs":15.0}}
+
+// Notice —— 诊断消息，level 与 CLI 日志级别一致，message 可直接展示
+{"type":"Notice","data":{"level":"warn","message":"连接失败(连接超时)，3 秒后重试"}}
+
+// Raw —— 原始推送帧，未经任何加工
+{"type":"Raw","data":{"source":"push_frame","payload":{
+  "messageType":10002,
+  "messageData":{"matchId":"9215951389778120460","map":"de_dust2","playerList":[ … ]} 
+}}}
+
+// Raw —— 战绩接口的原始响应
+{"type":"Raw","data":{"source":"stats_response","payload":{
+  "code":1,"message":"success","result":{"ctPlayerStatsDTOList":[ … ],"ctTeamDTO":{ … }} 
+}}}
+
+// Report —— 最终表格：text 是 CLI 同款文本，data 是结构化的两队数据
+{"type":"Report","data":{
+  "text":"============================(表格原文)============================",
+  "data":{
+    "map":"de_dust2",
+    "unknown":0,
+    "ct":[{
+      "side":"CT","steamid":"76561198000000001","nickname":"测试玩家01",
+      "rating_pro":1.108,"kd":1.07,"adr":80.1,"we":8.8,
+      "map_win_rate":0.571,"head_shot_rate":0.533,
+      "snipe_rate":0.080,"flash_success_rate":0.822,"pvp_score":1725
+    }],
+    "t":[ … ]
+  }
+}}
+
+// Finished —— 会话结束，code 含义与 CLI 退出码一致
+{"type":"Finished","data":{"code":0}}
+```
+
 前端接入示例(浏览器 / Node 通用)：
 
 ```js
