@@ -18,6 +18,8 @@ pub struct Args {
     pub log_level: Option<Level>,
     pub log_all: Option<PathBuf>,
     pub no_elevate: bool,
+    /// WS 推送后端端口；0 = 关闭
+    pub push_port: u16,
 }
 
 const HELP: &str = "\
@@ -37,6 +39,8 @@ fetch access_token
   --log-level <级别>      trace/debug/info/warn/error/off(默认 info)
   --verbose               等价于 --log-level debug：打印所有经过的请求
   --no-elevate            不自动提权(自己保证管理员权限)
+  --push-port <端口>      WS 推送后端端口(默认 8787，0 = 关闭)：
+                          客户端连上 ws://127.0.0.1:<端口> 即可收到捕获结果
   --pause [秒]            结束前留住窗口：不带值停 10 秒，带值停 N 秒，0 = 一直等到按键
   --no-pause              结束就关窗口，不留(脚本/CI 用)
   --help                  显示本帮助
@@ -72,6 +76,7 @@ pub fn parse_args() -> Args {
         log_level: None,
         log_all: None,
         no_elevate: false,
+        push_port: 8787,
     };
     let mut index = 0;
     let value = |i: usize| argv.get(i + 1).cloned().unwrap_or_default();
@@ -149,6 +154,10 @@ pub fn parse_args() -> Args {
             "--no-elevate" => {
                 args.no_elevate = true;
                 index += 1;
+            }
+            "--push-port" => {
+                args.push_port = value(index).parse().unwrap_or(8787);
+                index += 2;
             }
             "--pause" => {
                 // 带值 `--pause 5`：最多停 5 秒；不带值 `--pause`：停默认 10 秒。

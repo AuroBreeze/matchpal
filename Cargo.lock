@@ -516,6 +516,7 @@ dependencies = [
  "logkit",
  "serde_json",
  "tokio",
+ "tungstenite",
  "winreg",
 ]
 

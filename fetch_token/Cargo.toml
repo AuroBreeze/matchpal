@@ -22,3 +22,7 @@ serde_json = "1"
 http-body-util = "0.1"
 winreg = "0.56.0"
 chrono = "0.4"
+
+# WS 推送后端：命中 token 后把结果广播给已连接的客户端(GUI 把它当后端用)。
+# 版本与 match_watcher 对齐，workspace lock 里已有 0.30，无需新版本。
+tungstenite = "0.30"

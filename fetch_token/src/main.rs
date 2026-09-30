@@ -22,6 +22,7 @@ mod args_handler;
 mod ca;
 mod proxy;
 mod pause;
+mod push;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -502,7 +503,9 @@ impl HttpHandler for TokenHandler {
 }
 
 // ---------------------------------------------------------------- 写配置
-fn write_config(path: &Path, hit: &Hit, extras: &HashMap<String, String>) -> std::io::Result<()> {
+/// 把捕获结果组装成配置 JSON：写进 `path`，同时返回同一份文本给
+/// WS 推送层广播 —— 落盘和推送的内容永远一致。
+fn write_config(path: &Path, hit: &Hit, extras: &HashMap<String, String>) -> std::io::Result<String> {
     let mut map = serde_json::Map::new();
     map.insert(
         "captured_at".into(),
@@ -543,7 +546,9 @@ fn write_config(path: &Path, hit: &Hit, extras: &HashMap<String, String>) -> std
     {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(path, serde_json::to_string_pretty(&serde_json::Value::Object(map))?)
+    let json = serde_json::to_string_pretty(&serde_json::Value::Object(map))?;
+    std::fs::write(path, &json)?;
+    Ok(json)
 }
 
 // ---------------------------------------------------------------- 主流程
@@ -667,6 +672,23 @@ async fn main() {
         info!("仅接受以下域名的字段：{}", args.hosts.join(", "));
     }
 
+    // ---- WS 推送后端：把命中结果当作后端事件推给已连接的客户端
+    let push = if args.push_port > 0 {
+        match push::PushHub::spawn(args.push_port) {
+            Ok((hub, port)) => {
+                info!("WS 推送后端已就绪：ws://127.0.0.1:{port}(客户端连上即收推送，--push-port 0 可关闭)");
+                Some(hub)
+            }
+            Err(err) => {
+                // 不致命：端口被占只是少一路推送，写文件照旧
+                warn!("WS 推送后端启动失败({err})；仍会写入配置文件，但不推送");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let server = tokio::spawn(async move {
         if let Err(err) = proxy.start().await {
             error!("代理运行出错：{err}");
@@ -696,9 +718,14 @@ async fn main() {
                     info!("    {key} = {masked}");
                 }
                 match write_config(&args.write_config, &hit, &extras_map) {
-                    Ok(()) => {
+                    Ok(config_json) => {
                         info!("已写入：{}", args.write_config.display());
                         captured = true;
+                        // 同一份 JSON 走 WS 推给客户端，落盘与推送永远一致
+                        if let Some(hub) = &push {
+                            hub.broadcast(format!("{{\"type\":\"captured\",\"config\":{config_json}}}"));
+                            info!("已通过 WS 推送给已连接的客户端");
+                        }
                     }
                     // 抓到了但没落盘：绝不能算成功。这工具唯一的产物就是这个文件，
                     // 报 0 会让脚本以为拿到了 token。
@@ -713,6 +740,9 @@ async fn main() {
             }
             _ = tokio::time::sleep_until(deadline) => {
                 warn!("已达到超时时间 {}s，未命中", args.timeout);
+                if let Some(hub) = &push {
+                    hub.broadcast("{\"type\":\"timeout\"}".into());
+                }
                 break;
             }
             _ = tokio::signal::ctrl_c() => {
